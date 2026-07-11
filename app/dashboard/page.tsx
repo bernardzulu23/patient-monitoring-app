@@ -1,4 +1,5 @@
 import { WardOverviewLive } from "@/components/ward-overview-live";
+import { isAdmin } from "@/lib/authz";
 import { getWardOverview, requireSession } from "@/lib/data";
 
 export default async function DashboardPage() {
@@ -17,14 +18,12 @@ export default async function DashboardPage() {
     <div>
       {dbError && (
         <div className="mb-6 rounded-lg border border-warn bg-warn-soft px-4 py-3 text-sm text-warn">
-          Database unavailable. Set Neon <code className="font-mono">DATABASE_URL</code>{" "}
-          and <code className="font-mono">DATABASE_URL_UNPOOLED</code> in{" "}
-          <code className="font-mono">.env</code>, then run{" "}
+          Database unavailable or migration pending. Run{" "}
           <code className="font-mono">npx prisma migrate deploy</code> and{" "}
           <code className="font-mono">npx prisma db seed</code>.
         </div>
       )}
-      <WardOverviewLive initial={wards} />
+      <WardOverviewLive initial={wards} isAdmin={isAdmin(session)} />
     </div>
   );
 }

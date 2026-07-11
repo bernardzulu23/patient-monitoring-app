@@ -16,21 +16,34 @@ DEPLOY / DATABASE (Neon + Vercel):
 - Do not use Prisma Edge client or @prisma/adapter-neon unless asked — stick to pooled TCP + Prisma 6.
 
 DATA MODEL:
-- Ward has many Patients
-- Patient has many Devices (usually one)
-- Device has many Readings
+- Ward → Room → Patient → Device → Reading
+- Adding a patient requires selecting an existing Room (never assign Patient directly to Ward)
 - Reading = heart_rate, spo2, temp_c, systolic, diastolic, recorded_at
-- Alert is created when a Reading crosses a threshold (systolic >140, diastolic >90, etc.)
+
+ALERT SCORING:
+- Use NEWS2-inspired aggregate scoring (lib/vitalScore.ts), not single-value thresholds.
+- Label it "NEWS2-inspired" in UI/docs — never claim full NEWS2 compliance
+  (missing respiratory rate + consciousness level).
+- URGENT if aggregate ≥ 5, LOW if ≥ 1, else NORMAL.
 
 DEVICE INGESTION:
 - ESP32 devices POST readings to /api/readings with header x-api-key
 - API route must validate api_key against Device table before writing
 - Never trust device_id/patient_id from the request body — resolve from api_key server-side
+- Device apiKey is shown once at creation (secret), not browsable in plaintext later
 
 DASHBOARD:
 - Polling-based updates (fetch every 3-5s), NOT WebSockets
-- Three views: ward overview, ward detail (patient list), patient detail (history + chart)
-- Role-based access: nurse sees their ward, admin sees all wards
+- Routes: /dashboard (wards), /dashboard/wards/[id]/rooms, room patient lists,
+  /dashboard/patients/[id], /dashboard/staff (admin)
+- Role-based access as below
+
+ROLES:
+- admin — full CRUD, all wards; creates all staff accounts; password resets admin-only
+- doctor — read all wards; no ward restriction; no ward/room/staff CRUD
+- nurse — read/write own ward only
+- No self-registration — admin creates accounts via /dashboard/staff
+- No self-service password change for this project scope (admin resets via staff tools if needed)
 
 AUTH:
 - Custom email+password only. bcrypt for hashing, jose for signed httpOnly session cookies.
@@ -41,3 +54,4 @@ DO NOT:
 - Suggest WebSockets or Socket.io
 - Suggest multi-tenant subdomain routing (not needed — single hospital, multiple wards)
 - Add features not in this spec without asking first
+- Claim full NEWS2 compliance
