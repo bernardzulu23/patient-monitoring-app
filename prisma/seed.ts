@@ -10,6 +10,14 @@ const WARD_NAMES = ["ICU-A", "ICU-B", "Pediatric Ward", "General Ward"];
 const DEFAULT_PASSWORD = "changeme123"; // rotate per account after first login in a real deployment
 
 async function main() {
+  // Clear in FK-safe order so the seed is re-runnable
+  await prisma.alert.deleteMany();
+  await prisma.reading.deleteMany();
+  await prisma.device.deleteMany();
+  await prisma.patient.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.ward.deleteMany();
+
   const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
   // One global admin — sees every ward (wardId: null)
@@ -44,7 +52,8 @@ async function main() {
       data: {
         wardId: ward.id,
         fullName: `Demo Patient (${wardName})`,
-        patientCode: `P-${ward.id.slice(0, 6).toUpperCase()}`,
+        // Use ward slug — cuid prefixes collide when many rows are created in the same second
+        patientCode: `P-${slug.replace(/\./g, "-").toUpperCase()}`,
       },
     });
 
