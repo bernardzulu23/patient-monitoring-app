@@ -35,8 +35,3 @@ export function canManagePatientsInWard(
   if (session.role === "nurse" && session.wardId === wardId) return true;
   return false;
 }
-
-/** Password changes are admin-only for this project scope (no self-service profile). */
-export function canResetPasswords(session: SessionPayload) {
-  return session.role === "admin";
-}

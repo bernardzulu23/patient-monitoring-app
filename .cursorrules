@@ -39,11 +39,16 @@ DASHBOARD:
 - Role-based access as below
 
 ROLES:
-- admin — full CRUD, all wards; creates all staff accounts; password resets admin-only
+- admin — full CRUD, all wards; creates all staff accounts
 - doctor — read all wards; no ward restriction; no ward/room/staff CRUD
 - nurse — read/write own ward only
 - No self-registration — admin creates accounts via /dashboard/staff
-- No self-service password change for this project scope (admin resets via staff tools if needed)
+- Staff change their own password at /dashboard/settings (current + new password).
+  No email reset flow. Temp passwords from staff CRUD are meant to be rotated there.
+
+AUDIT:
+- Append-only AuditLog via lib/audit.ts logAction(); call from mutation API routes.
+- Admin-only read UI at /dashboard/audit. No edit/delete of audit rows.
 
 AUTH:
 - Custom email+password only. bcrypt for hashing, jose for signed httpOnly session cookies.

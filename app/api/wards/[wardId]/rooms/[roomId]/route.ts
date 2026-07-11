@@ -1,4 +1,5 @@
 import { canManageWards } from "@/lib/authz";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -33,5 +34,7 @@ export async function DELETE(
   }
 
   await prisma.room.delete({ where: { id: roomId } });
+  await logAction(session.userId, "DELETED_ROOM", "Room", roomId);
+
   return NextResponse.json({ success: true });
 }

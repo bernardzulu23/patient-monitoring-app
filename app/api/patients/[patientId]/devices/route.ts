@@ -1,4 +1,5 @@
 import { canManagePatientsInWard } from "@/lib/authz";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { randomUUID } from "crypto";
@@ -42,6 +43,8 @@ export async function POST(
       apiKey,
     },
   });
+
+  await logAction(session.userId, "ADDED_DEVICE", "Device", device.id);
 
   // apiKey returned once — never exposed again via list endpoints
   return NextResponse.json(

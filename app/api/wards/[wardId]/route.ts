@@ -1,4 +1,5 @@
 import { canManageWards } from "@/lib/authz";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -22,6 +23,8 @@ export async function PATCH(
     where: { id: wardId },
     data: { name: name.trim() },
   });
+
+  await logAction(session.userId, "RENAMED_WARD", "Ward", ward.id);
 
   return NextResponse.json({ ward });
 }
@@ -49,5 +52,7 @@ export async function DELETE(
   }
 
   await prisma.ward.delete({ where: { id: wardId } });
+  await logAction(session.userId, "DELETED_WARD", "Ward", wardId);
+
   return NextResponse.json({ success: true });
 }
