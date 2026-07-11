@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // DATABASE_URL = Neon pooled (-pooler) — used by the app on Vercel
+  // DATABASE_URL_UNPOOLED = Neon direct — used by Prisma Migrate (set automatically by Neon↔Vercel integration)
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Ward {
+  id        String    @id @default(cuid())
+  name      String
+  patients  Patient[]
+  users     User[]
+  createdAt DateTime  @default(now())
+}
+
+model Patient {
+  id          String   @id @default(cuid())
+  wardId      String
+  ward        Ward     @relation(fields: [wardId], references: [id])
+  fullName    String
+  patientCode String   @unique
+  admittedAt  DateTime @default(now())
+  devices     Device[]
+}
+
+model Device {
+  id         String    @id @default(cuid())
+  patientId  String
+  patient    Patient   @relation(fields: [patientId], references: [id])
+  deviceName String
+  apiKey     String    @unique
+  lastSeen   DateTime?
+  readings   Reading[]
+  alerts     Alert[]
+}
+
+model Reading {
+  id         String   @id @default(cuid())
+  deviceId   String
+  device     Device   @relation(fields: [deviceId], references: [id])
+  heartRate  Int?
+  spo2       Int?
+  tempC      Float?
+  systolic   Int?
+  diastolic  Int?
+  recordedAt DateTime @default(now())
+  alerts     Alert[]
+}
+
+model Alert {
+  id         String   @id @default(cuid())
+  deviceId   String
+  device     Device   @relation(fields: [deviceId], references: [id])
+  readingId  String
+  reading    Reading  @relation(fields: [readingId], references: [id])
+  alertType  String // "HIGH_BP", "LOW_SPO2", "HIGH_TEMP" etc.
+  sentViaSms Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  role         String // "nurse" | "admin"
+  wardId       String?
+  ward         Ward?   @relation(fields: [wardId], references: [id])
+}

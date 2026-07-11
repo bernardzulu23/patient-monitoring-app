@@ -1,0 +1,43 @@
+This is a hospital patient vital-signs monitoring system.
+
+STACK:
+- Next.js App Router, TypeScript (this repo uses Next.js 16 — use proxy.ts, not middleware.ts)
+- Prisma 6 + PostgreSQL (Neon)
+- Tailwind CSS
+- Deployed on Vercel (Root Directory: patient-monitor if the git repo parent is the workspace)
+
+DEPLOY / DATABASE (Neon + Vercel):
+- DATABASE_URL = Neon pooled connection (hostname has -pooler). App runtime uses this.
+- DATABASE_URL_UNPOOLED = Neon direct connection (no -pooler). Prisma Migrate uses this via directUrl.
+- Neon↔Vercel integration injects both names automatically — do not rename them.
+- SESSION_SECRET must be set manually in Vercel env vars (and locally in .env).
+- Build runs: prisma generate && prisma migrate deploy && next build
+- Prefer Prisma Client over raw drivers; keep the singleton in lib/prisma.ts for serverless.
+- Do not use Prisma Edge client or @prisma/adapter-neon unless asked — stick to pooled TCP + Prisma 6.
+
+DATA MODEL:
+- Ward has many Patients
+- Patient has many Devices (usually one)
+- Device has many Readings
+- Reading = heart_rate, spo2, temp_c, systolic, diastolic, recorded_at
+- Alert is created when a Reading crosses a threshold (systolic >140, diastolic >90, etc.)
+
+DEVICE INGESTION:
+- ESP32 devices POST readings to /api/readings with header x-api-key
+- API route must validate api_key against Device table before writing
+- Never trust device_id/patient_id from the request body — resolve from api_key server-side
+
+DASHBOARD:
+- Polling-based updates (fetch every 3-5s), NOT WebSockets
+- Three views: ward overview, ward detail (patient list), patient detail (history + chart)
+- Role-based access: nurse sees their ward, admin sees all wards
+
+AUTH:
+- Custom email+password only. bcrypt for hashing, jose for signed httpOnly session cookies.
+- No NextAuth, no OAuth providers, no magic links.
+- Protect /dashboard via proxy.ts (Next.js 16); verify the session JWT from the request cookie.
+
+DO NOT:
+- Suggest WebSockets or Socket.io
+- Suggest multi-tenant subdomain routing (not needed — single hospital, multiple wards)
+- Add features not in this spec without asking first
