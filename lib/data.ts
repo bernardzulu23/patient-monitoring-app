@@ -1,5 +1,7 @@
 import { getSession, type SessionPayload } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { canAccessWard, canViewAllWards } from "@/lib/authz";
+import { aggregateScore, type ScoreLevel } from "@/lib/vitalScore";
 import { redirect } from "next/navigation";
 
 export async function requireSession(): Promise<SessionPayload> {
@@ -9,9 +11,15 @@ export async function requireSession(): Promise<SessionPayload> {
 }
 
 export function wardsWhereForSession(session: SessionPayload) {
-  if (session.role === "admin") return {};
+  if (canViewAllWards(session)) return {};
   if (session.wardId) return { id: session.wardId };
   return { id: "__none__" };
+}
+
+function worstLevel(levels: ScoreLevel[]): ScoreLevel {
+  if (levels.includes("URGENT")) return "URGENT";
+  if (levels.includes("LOW")) return "LOW";
+  return "NORMAL";
 }
 
 export async function getWardOverview(session: SessionPayload) {
@@ -19,17 +27,17 @@ export async function getWardOverview(session: SessionPayload) {
     where: wardsWhereForSession(session),
     orderBy: { name: "asc" },
     include: {
-      patients: {
+      rooms: {
         include: {
-          devices: {
+          patients: {
             include: {
-              readings: {
-                orderBy: { recordedAt: "desc" },
-                take: 1,
-              },
-              alerts: {
-                where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
-                orderBy: { createdAt: "desc" },
+              devices: {
+                include: {
+                  readings: {
+                    orderBy: { recordedAt: "desc" },
+                    take: 1,
+                  },
+                },
               },
             },
           },
@@ -39,47 +47,72 @@ export async function getWardOverview(session: SessionPayload) {
   });
 
   return wards.map((ward) => {
-    const openAlerts = ward.patients.reduce(
-      (sum, p) => sum + p.devices.reduce((s, d) => s + d.alerts.length, 0),
-      0,
-    );
-    const onlineDevices = ward.patients.reduce(
-      (sum, p) =>
-        sum +
-        p.devices.filter(
-          (d) => d.lastSeen && Date.now() - d.lastSeen.getTime() < 60_000,
-        ).length,
-      0,
-    );
+    const patients = ward.rooms.flatMap((r) => r.patients);
+    const levels: ScoreLevel[] = [];
+    let onlineDevices = 0;
+    let deviceCount = 0;
+
+    for (const patient of patients) {
+      for (const device of patient.devices) {
+        deviceCount += 1;
+        if (device.lastSeen && Date.now() - device.lastSeen.getTime() < 60_000) {
+          onlineDevices += 1;
+        }
+        const reading = device.readings[0];
+        if (reading) {
+          levels.push(aggregateScore(reading).level);
+        }
+      }
+    }
+
+    const scoreLevel = worstLevel(levels);
 
     return {
       id: ward.id,
       name: ward.name,
-      patientCount: ward.patients.length,
-      openAlerts,
+      patientCount: patients.length,
+      roomCount: ward.rooms.length,
+      openAlerts: levels.filter((l) => l !== "NORMAL").length,
+      scoreLevel,
       onlineDevices,
-      deviceCount: ward.patients.reduce((s, p) => s + p.devices.length, 0),
+      deviceCount,
     };
   });
 }
 
-export async function getWardDetail(session: SessionPayload, wardId: string) {
-  if (session.role !== "admin" && session.wardId !== wardId) return null;
+export async function getWardWithRooms(session: SessionPayload, wardId: string) {
+  if (!canAccessWard(session, wardId)) return null;
 
   return prisma.ward.findFirst({
     where: { id: wardId },
     include: {
+      rooms: {
+        orderBy: { number: "asc" },
+        include: {
+          _count: { select: { patients: true } },
+        },
+      },
+    },
+  });
+}
+
+export async function getRoomDetail(
+  session: SessionPayload,
+  wardId: string,
+  roomId: string,
+) {
+  if (!canAccessWard(session, wardId)) return null;
+
+  return prisma.room.findFirst({
+    where: { id: roomId, wardId },
+    include: {
+      ward: true,
       patients: {
         orderBy: { fullName: "asc" },
         include: {
           devices: {
             include: {
               readings: { orderBy: { recordedAt: "desc" }, take: 1 },
-              alerts: {
-                where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
-                orderBy: { createdAt: "desc" },
-                take: 5,
-              },
             },
           },
         },
@@ -95,7 +128,7 @@ export async function getPatientDetail(
   const patient = await prisma.patient.findUnique({
     where: { id: patientId },
     include: {
-      ward: true,
+      room: { include: { ward: true } },
       devices: {
         include: {
           readings: { orderBy: { recordedAt: "desc" }, take: 60 },
@@ -106,8 +139,21 @@ export async function getPatientDetail(
   });
 
   if (!patient) return null;
-  if (session.role !== "admin" && session.wardId !== patient.wardId) {
-    return null;
-  }
+  if (!canAccessWard(session, patient.room.wardId)) return null;
   return patient;
+}
+
+export async function suggestNextPatientCode() {
+  const latest = await prisma.patient.findMany({
+    select: { patientCode: true },
+    orderBy: { patientCode: "desc" },
+    take: 50,
+  });
+
+  let max = 0;
+  for (const row of latest) {
+    const m = /^P-(\d+)$/i.exec(row.patientCode);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `P-${String(max + 1).padStart(4, "0")}`;
 }

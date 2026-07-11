@@ -5,23 +5,34 @@ generator client {
 datasource db {
   provider  = "postgresql"
   // DATABASE_URL = Neon pooled (-pooler) — used by the app on Vercel
-  // DATABASE_URL_UNPOOLED = Neon direct — used by Prisma Migrate (set automatically by Neon↔Vercel integration)
+  // DATABASE_URL_UNPOOLED = Neon direct — used by Prisma Migrate
   url       = env("DATABASE_URL")
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model Ward {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  patients  Patient[]
+  rooms     Room[]
   users     User[]
+  createdAt DateTime @default(now())
+}
+
+model Room {
+  id        String    @id @default(cuid())
+  wardId    String
+  ward      Ward      @relation(fields: [wardId], references: [id])
+  number    String
+  patients  Patient[]
   createdAt DateTime  @default(now())
+
+  @@unique([wardId, number])
 }
 
 model Patient {
   id          String   @id @default(cuid())
-  wardId      String
-  ward        Ward     @relation(fields: [wardId], references: [id])
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id])
   fullName    String
   patientCode String   @unique
   admittedAt  DateTime @default(now())
@@ -58,7 +69,7 @@ model Alert {
   device     Device   @relation(fields: [deviceId], references: [id])
   readingId  String
   reading    Reading  @relation(fields: [readingId], references: [id])
-  alertType  String // "HIGH_BP", "LOW_SPO2", "HIGH_TEMP" etc.
+  alertType  String // NEWS2-inspired levels e.g. "NEWS2_URGENT", "NEWS2_LOW"
   sentViaSms Boolean  @default(false)
   createdAt  DateTime @default(now())
 }
@@ -67,7 +78,7 @@ model User {
   id           String  @id @default(cuid())
   email        String  @unique
   passwordHash String
-  role         String // "nurse" | "admin"
+  role         String // "admin" | "doctor" | "nurse"
   wardId       String?
   ward         Ward?   @relation(fields: [wardId], references: [id])
 }

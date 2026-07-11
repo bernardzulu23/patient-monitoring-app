@@ -4,23 +4,21 @@ import { randomUUID } from "crypto";
 
 const prisma = new PrismaClient();
 
-// Add/remove wards here as the hospital grows — everything else scales automatically
 const WARD_NAMES = ["ICU-A", "ICU-B", "Pediatric Ward", "General Ward"];
 
-const DEFAULT_PASSWORD = "changeme123"; // rotate per account after first login in a real deployment
+const DEFAULT_PASSWORD = "changeme123";
 
 async function main() {
-  // Clear in FK-safe order so the seed is re-runnable
   await prisma.alert.deleteMany();
   await prisma.reading.deleteMany();
   await prisma.device.deleteMany();
   await prisma.patient.deleteMany();
+  await prisma.room.deleteMany();
   await prisma.user.deleteMany();
   await prisma.ward.deleteMany();
 
   const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
-  // One global admin — sees every ward (wardId: null)
   await prisma.user.create({
     data: {
       email: "admin@hospital.test",
@@ -31,10 +29,20 @@ async function main() {
   });
   console.log("Created admin: admin@hospital.test");
 
-  // One ward + one nurse per ward, looped so adding wards later is a one-line change
+  await prisma.user.create({
+    data: {
+      email: "doctor@hospital.test",
+      passwordHash,
+      role: "doctor",
+      wardId: null,
+    },
+  });
+  console.log("Created doctor: doctor@hospital.test");
+
+  let patientSeq = 1;
+
   for (const wardName of WARD_NAMES) {
     const ward = await prisma.ward.create({ data: { name: wardName } });
-
     const slug = wardName.toLowerCase().replace(/[^a-z0-9]+/g, ".");
     const nurseEmail = `nurse.${slug}@hospital.test`;
 
@@ -47,18 +55,20 @@ async function main() {
       },
     });
 
-    // One demo patient + device per ward so the dashboard has something to show immediately
+    const room = await prisma.room.create({
+      data: { wardId: ward.id, number: "1" },
+    });
+
+    const patientCode = `P-${String(patientSeq++).padStart(4, "0")}`;
     const patient = await prisma.patient.create({
       data: {
-        wardId: ward.id,
+        roomId: room.id,
         fullName: `Demo Patient (${wardName})`,
-        // Use ward slug — cuid prefixes collide when many rows are created in the same second
-        patientCode: `P-${slug.replace(/\./g, "-").toUpperCase()}`,
+        patientCode,
       },
     });
 
     const apiKey = `dev_${randomUUID()}`;
-
     await prisma.device.create({
       data: {
         patientId: patient.id,
@@ -67,8 +77,8 @@ async function main() {
       },
     });
 
-    console.log(`Created ward "${wardName}" with nurse ${nurseEmail}`);
-    console.log(`  device apiKey: ${apiKey}`);
+    console.log(`Created ward "${wardName}" room 1 · nurse ${nurseEmail}`);
+    console.log(`  patient ${patientCode} · device apiKey: ${apiKey}`);
   }
 
   console.log(`\nAll accounts use password: ${DEFAULT_PASSWORD}`);
