@@ -1,4 +1,5 @@
 import { canManageWards } from "@/lib/authz";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -30,6 +31,7 @@ export async function POST(
     const room = await prisma.room.create({
       data: { wardId, number: number.trim() },
     });
+    await logAction(session.userId, "CREATED_ROOM", "Room", room.id);
     return NextResponse.json({ room }, { status: 201 });
   } catch {
     return NextResponse.json(

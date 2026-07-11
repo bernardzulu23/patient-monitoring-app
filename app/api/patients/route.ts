@@ -1,4 +1,5 @@
 import { canManagePatientsInWard } from "@/lib/authz";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
         patientCode: patientCode.trim().toUpperCase(),
       },
     });
+    await logAction(session.userId, "CREATED_PATIENT", "Patient", patient.id);
     return NextResponse.json({ patient }, { status: 201 });
   } catch {
     return NextResponse.json(

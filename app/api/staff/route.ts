@@ -1,4 +1,5 @@
 import { canManageStaff } from "@/lib/authz";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import bcrypt from "bcryptjs";
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const temporaryPassword = randomBytes(5).toString("hex"); // 10 hex chars
+  const temporaryPassword = randomBytes(5).toString("hex");
   const passwordHash = await bcrypt.hash(temporaryPassword, 10);
 
   try {
@@ -63,6 +64,8 @@ export async function POST(req: Request) {
       },
       include: { ward: { select: { id: true, name: true } } },
     });
+
+    await logAction(session.userId, "CREATED_STAFF", "User", user.id);
 
     return NextResponse.json(
       {

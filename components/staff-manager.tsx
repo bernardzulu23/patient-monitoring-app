@@ -75,8 +75,8 @@ export function StaffManager({
             Staff
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Admin creates all accounts — no self-registration. Password changes
-            are admin-only for this project.
+            Admin creates all accounts — no self-registration. Staff change
+            their own password under Settings after receiving a temporary one.
           </p>
         </div>
         <button
@@ -95,7 +95,7 @@ export function StaffManager({
       {tempPassword && (
         <CopyOnceBlock
           value={tempPassword}
-          warning="Share this temporary password with the staff member now — it will not be shown again."
+          warning="Share this temporary password with the staff member now — it will not be shown again. They should change it under Settings after signing in."
         />
       )}
 

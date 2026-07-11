@@ -75,10 +75,25 @@ model Alert {
 }
 
 model User {
-  id           String  @id @default(cuid())
-  email        String  @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   passwordHash String
   role         String // "admin" | "doctor" | "nurse"
   wardId       String?
-  ward         Ward?   @relation(fields: [wardId], references: [id])
+  ward         Ward?      @relation(fields: [wardId], references: [id])
+  auditLogs    AuditLog[]
+}
+
+// Next steps (out of scope for this project): field-level encryption of AuditLog
+// payloads and MFA on privileged accounts. This table is append-only — no update/delete UI.
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String // e.g. "CREATED_PATIENT", "DELETED_WARD", "ADDED_DEVICE"
+  targetType String // e.g. "Patient", "Ward"
+  targetId   String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }

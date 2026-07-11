@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
-import { canManageStaff } from "@/lib/authz";
+import { canManageStaff, isAdmin } from "@/lib/authz";
 import type { SessionPayload } from "@/lib/session";
 
 export function DashboardHeader({
@@ -25,7 +25,7 @@ export function DashboardHeader({
               <p className="mt-0.5 text-sm text-ink-muted">{subtitle}</p>
             )}
           </div>
-          <nav className="flex gap-4 text-sm">
+          <nav className="flex flex-wrap gap-4 text-sm">
             <Link href="/dashboard" className="text-ink-muted hover:text-brand">
               Wards
             </Link>
@@ -37,6 +37,20 @@ export function DashboardHeader({
                 Staff
               </Link>
             )}
+            {isAdmin(session) && (
+              <Link
+                href="/dashboard/audit"
+                className="text-ink-muted hover:text-brand"
+              >
+                Audit
+              </Link>
+            )}
+            <Link
+              href="/dashboard/settings"
+              className="text-ink-muted hover:text-brand"
+            >
+              Settings
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">

@@ -9,6 +9,7 @@ const WARD_NAMES = ["ICU-A", "ICU-B", "Pediatric Ward", "General Ward"];
 const DEFAULT_PASSWORD = "changeme123";
 
 async function main() {
+  await prisma.auditLog.deleteMany();
   await prisma.alert.deleteMany();
   await prisma.reading.deleteMany();
   await prisma.device.deleteMany();

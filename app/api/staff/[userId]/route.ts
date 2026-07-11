@@ -1,4 +1,5 @@
 import { canManageStaff } from "@/lib/authz";
+import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -21,5 +22,7 @@ export async function DELETE(
   }
 
   await prisma.user.delete({ where: { id: userId } });
+  await logAction(session.userId, "DELETED_STAFF", "User", userId);
+
   return NextResponse.json({ success: true });
 }
