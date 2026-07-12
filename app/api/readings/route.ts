@@ -17,6 +17,28 @@ function asOptionalNumber(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/** Sensor-fault gates — not clinical scoring. Reject whole request if any field fails. */
+const PHYSIO_RANGES: Record<string, { min: number; max: number }> = {
+  heartRate: { min: 20, max: 300 },
+  spo2: { min: 0, max: 100 },
+  tempC: { min: 25, max: 45 },
+  systolic: { min: 40, max: 300 },
+  diastolic: { min: 20, max: 200 },
+};
+
+function findOutOfRangeField(
+  vitals: Record<string, number | undefined>,
+): { field: string; value: number } | null {
+  for (const [field, range] of Object.entries(PHYSIO_RANGES)) {
+    const value = vitals[field];
+    if (value === undefined) continue;
+    if (value < range.min || value > range.max) {
+      return { field, value };
+    }
+  }
+  return null;
+}
+
 function alertTypesForReading(vitals: {
   heartRate?: number;
   spo2?: number;
@@ -88,6 +110,24 @@ export async function POST(req: Request) {
     ) {
       return NextResponse.json(
         { error: "No vital signs provided" },
+        { status: 400 },
+      );
+    }
+
+    const outOfRange = findOutOfRangeField({
+      heartRate,
+      spo2,
+      tempC,
+      systolic,
+      diastolic,
+    });
+    if (outOfRange) {
+      return NextResponse.json(
+        {
+          error: "Reading out of physiological range",
+          field: outOfRange.field,
+          value: outOfRange.value,
+        },
         { status: 400 },
       );
     }
