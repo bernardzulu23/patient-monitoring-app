@@ -12,8 +12,8 @@ DEPLOY / DATABASE (Neon + Vercel):
 - Neon↔Vercel integration injects both names automatically — do not rename them.
 - SESSION_SECRET must be set manually in Vercel env vars (and locally in .env).
 - Build runs: prisma generate && prisma migrate deploy && next build
-- Prefer Prisma Client over raw drivers; keep the singleton in lib/prisma.ts for serverless.
-- Do not use Prisma Edge client or @prisma/adapter-neon unless asked — stick to pooled TCP + Prisma 6.
+- Prefer Prisma Client with @prisma/adapter-neon (pooled DATABASE_URL) on Vercel — avoid raw TCP hangs.
+- Keep the singleton in lib/prisma.ts for serverless.
 
 DATA MODEL:
 - Ward → Room → Patient → Device → Reading
