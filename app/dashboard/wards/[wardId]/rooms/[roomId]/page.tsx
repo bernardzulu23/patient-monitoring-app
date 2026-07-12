@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
-import {
-  RoomPatientsManager,
-} from "@/components/room-patients-manager";
+import { RoomPatientsManager } from "@/components/room-patients-manager";
 import { canManagePatientsInWard } from "@/lib/authz";
 import {
   getRoomDetail,
+  getWardWithRooms,
   requireSession,
   suggestNextPatientCode,
 } from "@/lib/data";
@@ -20,6 +19,7 @@ export default async function RoomDetailPage({
   const room = await getRoomDetail(session, wardId, roomId);
   if (!room) notFound();
 
+  const ward = await getWardWithRooms(session, wardId);
   const suggestedCode = await suggestNextPatientCode();
 
   const patients = room.patients.map((patient) => {
@@ -51,6 +51,10 @@ export default async function RoomDetailPage({
       roomId={room.id}
       roomNumber={room.number}
       patients={patients}
+      wardRooms={(ward?.rooms ?? []).map((r) => ({
+        id: r.id,
+        number: r.number,
+      }))}
       canManage={canManagePatientsInWard(session, wardId)}
       suggestedCode={suggestedCode}
     />

@@ -4,6 +4,44 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
 
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ wardId: string; roomId: string }> },
+) {
+  const session = await getSession();
+  if (!session || !canManageWards(session)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { wardId, roomId } = await params;
+  const room = await prisma.room.findFirst({ where: { id: roomId, wardId } });
+  if (!room) {
+    return NextResponse.json({ error: "Room not found" }, { status: 404 });
+  }
+
+  const { number } = await req.json();
+  if (typeof number !== "string" || !number.trim()) {
+    return NextResponse.json(
+      { error: "Room number is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const updated = await prisma.room.update({
+      where: { id: roomId },
+      data: { number: number.trim() },
+    });
+    await logAction(session.userId, "UPDATED_ROOM", "Room", roomId);
+    return NextResponse.json({ room: updated });
+  } catch {
+    return NextResponse.json(
+      { error: "A room with that number already exists in this ward" },
+      { status: 409 },
+    );
+  }
+}
+
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ wardId: string; roomId: string }> },
