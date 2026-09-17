@@ -1,15 +1,15 @@
 import { WardOverviewLive } from "@/components/ward-overview-live";
 import { isAdmin } from "@/lib/authz";
-import { getWardOverview, requireSession } from "@/lib/data";
+import { getDashboardOverview, requireSession } from "@/lib/data";
 
 export default async function DashboardPage() {
   const session = await requireSession();
 
-  let wards: Awaited<ReturnType<typeof getWardOverview>> = [];
+  let overview: Awaited<ReturnType<typeof getDashboardOverview>> | null = null;
   let dbError = false;
 
   try {
-    wards = await getWardOverview(session);
+    overview = await getDashboardOverview(session);
   } catch {
     dbError = true;
   }
@@ -23,7 +23,22 @@ export default async function DashboardPage() {
           <code className="font-mono">npx prisma db seed</code>.
         </div>
       )}
-      <WardOverviewLive initial={wards} isAdmin={isAdmin(session)} />
+      <WardOverviewLive
+        initial={
+          overview ?? {
+            wards: [],
+            attention: [],
+            totals: {
+              urgent: 0,
+              low: 0,
+              offline: 0,
+              online: 0,
+              openAlerts: 0,
+            },
+          }
+        }
+        isAdmin={isAdmin(session)}
+      />
     </div>
   );
 }
