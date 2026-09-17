@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "../lib/password";
 import { randomUUID } from "crypto";
 
 const prisma = new PrismaClient();
@@ -18,7 +18,7 @@ async function main() {
   await prisma.user.deleteMany();
   await prisma.ward.deleteMany();
 
-  const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+  const passwordHash = await hashPassword(DEFAULT_PASSWORD);
 
   await prisma.user.create({
     data: {
