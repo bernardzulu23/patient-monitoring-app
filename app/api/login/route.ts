@@ -64,6 +64,11 @@ export async function POST(req: Request) {
     const emailLimit = isRateLimited(emailKey, MAX_ATTEMPTS_PER_EMAIL);
 
     if (ipLimit.limited || emailLimit.limited) {
+      try {
+        await logAction(null, "LOGIN_RATE_LIMITED", "Auth", email || ip);
+      } catch (auditError) {
+        console.error("[api/login] audit rate-limit", auditError);
+      }
       return jsonError(
         429,
         { error: "Too many sign-in attempts. Try again in a few minutes." },
@@ -76,6 +81,11 @@ export async function POST(req: Request) {
     if (!user || !valid) {
       hitRateLimit(ipKey, LOGIN_WINDOW_MS);
       hitRateLimit(emailKey, LOGIN_WINDOW_MS);
+      try {
+        await logAction(null, "LOGIN_FAILED", "Auth", email);
+      } catch (auditError) {
+        console.error("[api/login] audit fail", auditError);
+      }
       return jsonError(401, INVALID);
     }
 

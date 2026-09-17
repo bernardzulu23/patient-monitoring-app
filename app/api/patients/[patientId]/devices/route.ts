@@ -39,6 +39,7 @@ export async function POST(
   const device = await prisma.device.create({
     data: {
       patientId,
+      roomId: patient.roomId,
       deviceName,
       apiKey,
     },

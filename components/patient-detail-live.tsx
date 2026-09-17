@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ScoreBadge } from "@/components/score-badge";
 import { Sparkline } from "@/components/sparkline";
 import { VitalChip } from "@/components/vital-chip";
+import { PatientThresholdOverrideForm } from "@/components/patient-threshold-override-form";
 import type { MonitorStatus } from "@/lib/ingestReading";
 import type { ScoreLevel } from "@/lib/vitalScore";
 
@@ -14,7 +15,12 @@ type PatientLivePayload = {
   id: string;
   fullName: string;
   patientCode: string;
+  age: number | null;
+  sex: string | null;
+  admissionReason: string | null;
+  patientStatus: string;
   admittedAt: string;
+  dischargedAt: string | null;
   wardId: string;
   wardName: string;
   roomId: string;
@@ -23,6 +29,7 @@ type PatientLivePayload = {
   lastSeenAge: string | null;
   status: MonitorStatus;
   latestScore: { total: number; level: ScoreLevel } | null;
+  hasThresholdOverride: boolean;
   latest: {
     heartRate: number | null;
     spo2: number | null;
@@ -31,6 +38,12 @@ type PatientLivePayload = {
     diastolic: number | null;
     recordedAt: string;
     recordedAge: string | null;
+  } | null;
+  bp: {
+    systolic: number | null;
+    diastolic: number | null;
+    measuredAt: string;
+    measuredAge: string | null;
   } | null;
   readings: Array<{
     id: string;
@@ -45,6 +58,8 @@ type PatientLivePayload = {
   alerts: Array<{
     id: string;
     alertType: string;
+    status?: string;
+    value?: number | null;
     createdAt: string;
     createdAge: string | null;
   }>;
@@ -66,6 +81,7 @@ export function PatientDetailLive({
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [simBusy, setSimBusy] = useState(false);
   const [simError, setSimError] = useState("");
+  const [dischargeBusy, setDischargeBusy] = useState(false);
 
   useEffect(() => {
     setData(initial);
@@ -96,6 +112,27 @@ export function PatientDetailLive({
       clearInterval(id);
     };
   }, [patientId]);
+
+  async function discharge() {
+    if (
+      !confirm(
+        `Discharge ${data.fullName}? Bed will free; record is archived.`,
+      )
+    ) {
+      return;
+    }
+    setDischargeBusy(true);
+    const res = await fetch(`/api/patients/${patientId}/discharge`, {
+      method: "POST",
+    });
+    setDischargeBusy(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      alert((body as { error?: string }).error || "Discharge failed");
+      return;
+    }
+    window.location.href = `/dashboard/wards/${data.wardId}/rooms/${data.roomId}`;
+  }
 
   async function simulateReading() {
     setSimBusy(true);
@@ -152,7 +189,7 @@ export function PatientDetailLive({
             href={`/dashboard/wards/${data.wardId}/rooms/${data.roomId}`}
             className="text-sm text-brand hover:underline"
           >
-            ← {data.wardName} · Room {data.roomNumber}
+            ← {data.wardName} · Bed {data.roomNumber}
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <h1 className="font-display text-3xl font-semibold text-ink">
@@ -162,10 +199,19 @@ export function PatientDetailLive({
               level={data.status}
               total={data.latestScore?.total}
             />
+            {data.patientStatus === "DISCHARGED" && (
+              <span className="rounded-md bg-ink-muted/15 px-2 py-0.5 text-xs font-semibold text-ink-muted">
+                Discharged
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-ink-muted">
-            {data.patientCode} · admitted{" "}
+            {data.patientCode}
+            {data.age != null ? ` · ${data.age}y` : ""}
+            {data.sex ? ` · ${data.sex}` : ""}
+            {" · admitted "}
             {new Date(data.admittedAt).toLocaleDateString()}
+            {data.admissionReason ? ` · ${data.admissionReason}` : ""}
             {data.deviceName ? ` · ${data.deviceName}` : " · no device"}
             {data.lastSeenAge ? ` · last seen ${data.lastSeenAge}` : ""}
           </p>
@@ -177,8 +223,18 @@ export function PatientDetailLive({
               : " · Live"}
           </p>
         </div>
-        {data.canSimulate && (
-          <div className="text-right">
+        <div className="flex flex-col items-end gap-2 text-right">
+          {data.canSimulate && data.patientStatus === "ACTIVE" && (
+            <button
+              type="button"
+              onClick={discharge}
+              disabled={dischargeBusy}
+              className="rounded-lg border border-line px-3 py-2 text-sm font-medium hover:border-alert hover:text-alert disabled:opacity-60"
+            >
+              {dischargeBusy ? "Discharging…" : "Discharge"}
+            </button>
+          )}
+          {data.canSimulate && (
             <button
               type="button"
               onClick={simulateReading}
@@ -187,12 +243,18 @@ export function PatientDetailLive({
             >
               {simBusy ? "Simulating…" : "Simulate reading"}
             </button>
-            {simError && (
-              <p className="mt-1 text-xs text-alert">{simError}</p>
-            )}
-            <p className="mt-1 text-xs text-ink-muted">Demo without ESP32</p>
-          </div>
-        )}
+          )}
+          <a
+            href={`/api/patients/${patientId}/export.csv`}
+            className="text-xs font-medium text-brand hover:underline"
+          >
+            Export CSV
+          </a>
+          {simError && <p className="text-xs text-alert">{simError}</p>}
+          {data.canSimulate && (
+            <p className="text-xs text-ink-muted">Demo without ESP32</p>
+          )}
+        </div>
       </div>
 
       <section>
@@ -212,14 +274,22 @@ export function PatientDetailLive({
             <VitalChip
               label="BP"
               value={
-                data.latest.systolic != null && data.latest.diastolic != null
-                  ? `${data.latest.systolic}/${data.latest.diastolic}`
-                  : null
+                data.bp
+                  ? data.bp.systolic != null && data.bp.diastolic != null
+                    ? `${data.bp.systolic}/${data.bp.diastolic}`
+                    : null
+                  : data.latest.systolic != null && data.latest.diastolic != null
+                    ? `${data.latest.systolic}/${data.latest.diastolic}`
+                    : null
               }
             />
             <span className="self-center text-xs text-ink-muted">
+              Continuous:{" "}
               {data.latest.recordedAge ??
                 new Date(data.latest.recordedAt).toLocaleString()}
+              {data.bp?.measuredAge
+                ? ` · BP measured ${data.bp.measuredAge}`
+                : " · BP not continuous"}
             </span>
           </div>
         ) : (
@@ -231,6 +301,11 @@ export function PatientDetailLive({
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-muted">
           Alerts
         </h2>
+        {data.canSimulate && (
+          <div className="mb-3">
+            <PatientThresholdOverrideForm patientId={patientId} />
+          </div>
+        )}
         {data.alerts.length === 0 ? (
           <p className="text-sm text-ink-muted">No alerts for this device.</p>
         ) : (
@@ -242,6 +317,8 @@ export function PatientDetailLive({
               >
                 <span className="font-medium text-ink">
                   {alertLabel(a.alertType)}
+                  {a.status ? ` · ${a.status}` : ""}
+                  {a.value != null ? ` · ${a.value}` : ""}
                 </span>
                 <span className="text-xs text-ink-muted">
                   {a.createdAge ?? new Date(a.createdAt).toLocaleString()}

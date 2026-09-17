@@ -32,6 +32,9 @@ export async function PATCH(
     fullName?: string;
     patientCode?: string;
     roomId?: string;
+    age?: number | null;
+    sex?: string | null;
+    admissionReason?: string | null;
   } = {};
 
   if (typeof body.fullName === "string") {
@@ -54,17 +57,37 @@ export async function PATCH(
     data.patientCode = body.patientCode.trim().toUpperCase();
   }
 
+  if (body.age !== undefined) {
+    if (body.age === null || body.age === "") data.age = null;
+    else {
+      const n = Number(body.age);
+      data.age = Number.isFinite(n) ? n : null;
+    }
+  }
+  if (body.sex !== undefined) {
+    data.sex =
+      typeof body.sex === "string" && body.sex.trim()
+        ? body.sex.trim().slice(0, 20)
+        : null;
+  }
+  if (body.admissionReason !== undefined) {
+    data.admissionReason =
+      typeof body.admissionReason === "string" && body.admissionReason.trim()
+        ? body.admissionReason.trim().slice(0, 500)
+        : null;
+  }
+
   if (typeof body.roomId === "string" && body.roomId !== patient.roomId) {
     const targetRoom = await prisma.room.findUnique({
       where: { id: body.roomId },
+      include: { patients: { where: { status: "ACTIVE" } } },
     });
     if (!targetRoom) {
-      return NextResponse.json({ error: "Room not found" }, { status: 404 });
+      return NextResponse.json({ error: "Bed not found" }, { status: 404 });
     }
     if (!canManagePatientsInWard(session, targetRoom.wardId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    // Nurses can only move within their ward; admins can move across wards
     if (
       session.role === "nurse" &&
       targetRoom.wardId !== patient.room.wardId
@@ -72,6 +95,15 @@ export async function PATCH(
       return NextResponse.json(
         { error: "Nurses can only move patients within their ward" },
         { status: 403 },
+      );
+    }
+    if (
+      targetRoom.patients.some((p) => p.id !== patientId) &&
+      targetRoom.patients.length > 0
+    ) {
+      return NextResponse.json(
+        { error: "Target bed already has an active patient" },
+        { status: 409 },
       );
     }
     data.roomId = body.roomId;

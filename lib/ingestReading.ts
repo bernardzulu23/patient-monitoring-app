@@ -1,11 +1,11 @@
 import { logAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import {
+  evaluateThresholdBreaches,
+  getEffectiveThresholds,
+} from "@/lib/thresholds";
+import {
   aggregateScore,
-  scoreHeartRate,
-  scoreSpo2,
-  scoreSystolic,
-  scoreTemp,
   type ScoreLevel,
 } from "@/lib/vitalScore";
 
@@ -18,34 +18,11 @@ export type VitalsInput = {
   recordedAt?: Date;
 };
 
-/** Device counts as online if lastSeen within this window (~5 min for demos). */
-export const ONLINE_MS = 5 * 60_000;
+/** Continuous vitals: online / offline display window (2 min per plan). */
+export const ONLINE_MS = 2 * 60_000;
+export const DEVICE_OFFLINE_MS = 2 * 60_000;
 
 export type MonitorStatus = "NO_DATA" | "OFFLINE" | ScoreLevel;
-
-export function alertTypesForReading(vitals: {
-  heartRate?: number;
-  spo2?: number;
-  systolic?: number;
-  tempC?: number;
-}): string[] {
-  const types: string[] = [];
-
-  if (vitals.heartRate != null && scoreHeartRate(vitals.heartRate) > 0) {
-    types.push(vitals.heartRate >= 91 ? "HIGH_HR" : "LOW_HR");
-  }
-  if (vitals.spo2 != null && scoreSpo2(vitals.spo2) > 0) {
-    types.push("LOW_SPO2");
-  }
-  if (vitals.systolic != null && scoreSystolic(vitals.systolic) > 0) {
-    types.push(vitals.systolic >= 220 ? "HIGH_SYSTOLIC" : "LOW_SYSTOLIC");
-  }
-  if (vitals.tempC != null && scoreTemp(vitals.tempC) > 0) {
-    types.push(vitals.tempC >= 38.1 ? "HIGH_TEMP" : "LOW_TEMP");
-  }
-
-  return types;
-}
 
 /** Resolve display status from device + latest reading. */
 export function resolveMonitorStatus(args: {
@@ -68,7 +45,6 @@ export function resolveMonitorStatus(args: {
 
   if (!online) {
     const score = aggregateScore(args.reading);
-    // Offline takes priority for triage display when device went quiet
     return { status: "OFFLINE", scoreTotal: score.total, online: false };
   }
 
@@ -87,8 +63,85 @@ export function formatRelativeAge(date: Date | null | undefined): string | null 
   return date.toLocaleDateString();
 }
 
+async function upsertActiveAlert(args: {
+  deviceId: string;
+  readingId: string | null;
+  alertType: string;
+  value: number | null;
+}) {
+  const existing = await prisma.alert.findFirst({
+    where: {
+      deviceId: args.deviceId,
+      alertType: args.alertType,
+      status: { in: ["ACTIVE", "ACKNOWLEDGED"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existing) {
+    await prisma.alert.update({
+      where: { id: existing.id },
+      data: {
+        readingId: args.readingId ?? existing.readingId,
+        value: args.value,
+      },
+    });
+    return existing.id;
+  }
+
+  const created = await prisma.alert.create({
+    data: {
+      deviceId: args.deviceId,
+      readingId: args.readingId,
+      alertType: args.alertType,
+      status: "ACTIVE",
+      value: args.value,
+    },
+  });
+  return created.id;
+}
+
+async function resolveOpenAlerts(
+  deviceId: string,
+  alertTypes: string[],
+) {
+  if (alertTypes.length === 0) return;
+  await prisma.alert.updateMany({
+    where: {
+      deviceId,
+      alertType: { in: alertTypes },
+      status: { in: ["ACTIVE", "ACKNOWLEDGED"] },
+    },
+    data: {
+      status: "RESOLVED",
+      resolvedAt: new Date(),
+    },
+  });
+}
+
+/** Create/resolve DEVICE_OFFLINE based on lastSeen. */
+export async function syncDeviceOfflineAlert(deviceId: string) {
+  const device = await prisma.device.findUnique({ where: { id: deviceId } });
+  if (!device) return;
+
+  const offline =
+    !device.lastSeen ||
+    Date.now() - device.lastSeen.getTime() > DEVICE_OFFLINE_MS;
+
+  if (offline) {
+    await upsertActiveAlert({
+      deviceId,
+      readingId: null,
+      alertType: "DEVICE_OFFLINE",
+      value: null,
+    });
+  } else {
+    await resolveOpenAlerts(deviceId, ["DEVICE_OFFLINE"]);
+  }
+}
+
 /**
- * Persist a reading for a known device, update lastSeen, score, create alerts, audit.
+ * Persist a reading for a known device, update lastSeen, score, threshold alerts, audit.
  */
 export async function ingestReadingForDevice(
   deviceId: string,
@@ -103,6 +156,14 @@ export async function ingestReadingForDevice(
     diastolic,
     recordedAt = new Date(),
   } = vitals;
+
+  const device = await prisma.device.findUnique({
+    where: { id: deviceId },
+    select: { id: true, patientId: true },
+  });
+  if (!device) {
+    throw new Error("Device not found");
+  }
 
   const reading = await prisma.reading.create({
     data: {
@@ -121,6 +182,8 @@ export async function ingestReadingForDevice(
     data: { lastSeen: recordedAt },
   });
 
+  await resolveOpenAlerts(deviceId, ["DEVICE_OFFLINE"]);
+
   const scoreInput = {
     ...(heartRate !== undefined ? { heartRate } : {}),
     ...(spo2 !== undefined ? { spo2 } : {}),
@@ -130,17 +193,37 @@ export async function ingestReadingForDevice(
 
   const score = aggregateScore(scoreInput);
 
-  if (score.level === "URGENT" || score.level === "LOW") {
-    const types = alertTypesForReading(scoreInput);
-    for (const alertType of types) {
-      await prisma.alert.create({
-        data: {
-          deviceId,
-          readingId: reading.id,
-          alertType,
-        },
-      });
-    }
+  const thresholds = await getEffectiveThresholds(device.patientId);
+  const breaches = evaluateThresholdBreaches(
+    {
+      heartRate: heartRate ?? null,
+      spo2: spo2 ?? null,
+      tempC: tempC ?? null,
+      systolic: systolic ?? null,
+    },
+    thresholds,
+  );
+
+  const allThreshTypes = [
+    "THRESH_LOW_TEMP",
+    "THRESH_HIGH_TEMP",
+    "THRESH_LOW_HR",
+    "THRESH_HIGH_HR",
+    "THRESH_LOW_SPO2",
+    "THRESH_LOW_SYSTOLIC",
+    "THRESH_HIGH_SYSTOLIC",
+  ];
+  const activeTypes = new Set(breaches.map((b) => b.alertType));
+  const toResolve = allThreshTypes.filter((t) => !activeTypes.has(t));
+  await resolveOpenAlerts(deviceId, toResolve);
+
+  for (const breach of breaches) {
+    await upsertActiveAlert({
+      deviceId,
+      readingId: reading.id,
+      alertType: breach.alertType,
+      value: breach.value,
+    });
   }
 
   await logAction(
@@ -150,5 +233,5 @@ export async function ingestReadingForDevice(
     reading.id,
   );
 
-  return { reading, score };
+  return { reading, score, breaches };
 }
