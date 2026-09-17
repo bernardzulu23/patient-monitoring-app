@@ -24,25 +24,34 @@ model Room {
   ward      Ward      @relation(fields: [wardId], references: [id])
   number    String
   patients  Patient[]
+  devices   Device[]
   createdAt DateTime  @default(now())
 
   @@unique([wardId, number])
 }
 
 model Patient {
-  id          String   @id @default(cuid())
-  roomId      String
-  room        Room     @relation(fields: [roomId], references: [id])
-  fullName    String
-  patientCode String   @unique
-  admittedAt  DateTime @default(now())
-  devices     Device[]
+  id                String                    @id @default(cuid())
+  roomId            String
+  room              Room                      @relation(fields: [roomId], references: [id])
+  fullName          String
+  patientCode       String                    @unique
+  age               Int?
+  sex               String?
+  admissionReason   String?
+  status            String                    @default("ACTIVE") // ACTIVE | DISCHARGED
+  admittedAt        DateTime                  @default(now())
+  dischargedAt      DateTime?
+  devices           Device[]
+  thresholdOverride PatientThresholdOverride?
 }
 
 model Device {
   id         String    @id @default(cuid())
-  patientId  String
-  patient    Patient   @relation(fields: [patientId], references: [id])
+  patientId  String?
+  patient    Patient?  @relation(fields: [patientId], references: [id])
+  roomId     String?
+  room       Room?     @relation(fields: [roomId], references: [id])
   deviceName String
   apiKey     String    @unique
   lastSeen   DateTime?
@@ -64,14 +73,23 @@ model Reading {
 }
 
 model Alert {
-  id         String   @id @default(cuid())
-  deviceId   String
-  device     Device   @relation(fields: [deviceId], references: [id])
-  readingId  String
-  reading    Reading  @relation(fields: [readingId], references: [id])
-  alertType  String // NEWS2-inspired levels e.g. "NEWS2_URGENT", "NEWS2_LOW"
-  sentViaSms Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id               String    @id @default(cuid())
+  deviceId         String
+  device           Device    @relation(fields: [deviceId], references: [id])
+  readingId        String?
+  reading          Reading?  @relation(fields: [readingId], references: [id])
+  alertType        String
+  status           String    @default("ACTIVE") // ACTIVE | ACKNOWLEDGED | RESOLVED
+  value            Float?
+  acknowledgedAt   DateTime?
+  acknowledgedById String?
+  acknowledgedBy   User?     @relation("AlertAcks", fields: [acknowledgedById], references: [id], onDelete: SetNull)
+  sentViaSms       Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  resolvedAt       DateTime?
+
+  @@index([status, createdAt])
+  @@index([deviceId, alertType, status])
 }
 
 model User {
@@ -79,9 +97,13 @@ model User {
   email        String     @unique
   passwordHash String
   role         String // "admin" | "doctor" | "nurse"
+  displayName  String?
+  staffId      String?
+  phone        String?
   wardId       String?
   ward         Ward?      @relation(fields: [wardId], references: [id])
   auditLogs    AuditLog[]
+  alertAcks    Alert[]    @relation("AlertAcks")
 }
 
 // Next steps (out of scope for this project): field-level encryption of AuditLog
@@ -90,10 +112,53 @@ model AuditLog {
   id         String   @id @default(cuid())
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action     String // e.g. "CREATED_PATIENT", "DELETED_WARD", "ADDED_DEVICE"
-  targetType String // e.g. "Patient", "Ward"
+  action     String
+  targetType String
   targetId   String
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
+  @@index([action])
+}
+
+/** Admin-managed images for the public landing page (stored in DB for Vercel-friendly demos). */
+model LandingImage {
+  id           String   @id @default(cuid())
+  slot         String // "HERO" | "GALLERY"
+  fileName     String
+  mimeType     String
+  data         Bytes
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([slot])
+}
+
+/** Hospital-wide vital threshold defaults (admin-configurable). Placeholders — not medical advice. */
+model HospitalThresholds {
+  id        String   @id @default("default")
+  tempLow   Float    @default(35)
+  tempHigh  Float    @default(38.5)
+  hrLow     Int      @default(50)
+  hrHigh    Int      @default(120)
+  spo2Low   Int      @default(92)
+  sysLow    Int      @default(90)
+  sysHigh   Int      @default(180)
+  updatedAt DateTime @updatedAt
+  updatedById String?
+}
+
+/** Optional per-patient threshold overrides (null field = use hospital default). */
+model PatientThresholdOverride {
+  id        String  @id @default(cuid())
+  patientId String  @unique
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  tempLow   Float?
+  tempHigh  Float?
+  hrLow     Int?
+  hrHigh    Int?
+  spo2Low   Int?
+  sysLow    Int?
+  sysHigh   Int?
+  updatedAt DateTime @updatedAt
 }

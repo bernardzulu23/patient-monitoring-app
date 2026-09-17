@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
-import { canManageStaff, isAdmin } from "@/lib/authz";
+import { isAdmin } from "@/lib/authz";
 import type { SessionPayload } from "@/lib/session";
+
+const linkClass = "text-ink-muted hover:text-brand";
 
 export function DashboardHeader({
   session,
@@ -26,29 +28,33 @@ export function DashboardHeader({
             )}
           </div>
           <nav className="flex flex-wrap gap-4 text-sm">
-            <Link href="/dashboard" className="text-ink-muted hover:text-brand">
+            <Link href="/dashboard" className={linkClass}>
               Wards
             </Link>
-            {canManageStaff(session) && (
-              <Link
-                href="/dashboard/staff"
-                className="text-ink-muted hover:text-brand"
-              >
-                Accounts
-              </Link>
-            )}
-            {isAdmin(session) && (
-              <Link
-                href="/dashboard/audit"
-                className="text-ink-muted hover:text-brand"
-              >
-                Audit
-              </Link>
-            )}
+            <Link href="/dashboard/beds" className={linkClass}>
+              Beds
+            </Link>
+            <Link href="/dashboard/alerts" className={linkClass}>
+              Alerts
+            </Link>
             <Link
-              href="/dashboard/settings"
-              className="text-ink-muted hover:text-brand"
+              href="/dashboard/directory?role=nurse"
+              className={linkClass}
             >
+              Nurses
+            </Link>
+            <Link
+              href="/dashboard/directory?role=doctor"
+              className={linkClass}
+            >
+              Doctors
+            </Link>
+            {isAdmin(session) && (
+              <Link href="/dashboard/admin" className={linkClass}>
+                Admin
+              </Link>
+            )}
+            <Link href="/dashboard/settings" className={linkClass}>
               Settings
             </Link>
           </nav>

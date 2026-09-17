@@ -29,6 +29,9 @@ export async function GET() {
       id: u.id,
       email: u.email,
       role: u.role,
+      displayName: u.displayName,
+      staffId: u.staffId,
+      phone: u.phone,
       ward: u.ward,
     })),
   });
@@ -89,6 +92,28 @@ export async function POST(req: Request) {
   const temporaryPassword = randomBytes(8).toString("hex");
   const passwordHash = await hashPassword(temporaryPassword);
 
+  const displayName =
+    typeof body === "object" &&
+    body &&
+    "displayName" in body &&
+    typeof (body as { displayName: unknown }).displayName === "string"
+      ? (body as { displayName: string }).displayName.trim().slice(0, 120) || null
+      : null;
+  const staffId =
+    typeof body === "object" &&
+    body &&
+    "staffId" in body &&
+    typeof (body as { staffId: unknown }).staffId === "string"
+      ? (body as { staffId: string }).staffId.trim().slice(0, 40) || null
+      : null;
+  const phone =
+    typeof body === "object" &&
+    body &&
+    "phone" in body &&
+    typeof (body as { phone: unknown }).phone === "string"
+      ? (body as { phone: string }).phone.trim().slice(0, 40) || null
+      : null;
+
   try {
     const user = await prisma.user.create({
       data: {
@@ -96,6 +121,9 @@ export async function POST(req: Request) {
         passwordHash,
         role,
         wardId: role === "nurse" && typeof wardId === "string" ? wardId : null,
+        displayName,
+        staffId,
+        phone,
       },
       include: { ward: { select: { id: true, name: true } } },
     });
@@ -108,6 +136,9 @@ export async function POST(req: Request) {
           id: user.id,
           email: user.email,
           role: user.role,
+          displayName: user.displayName,
+          staffId: user.staffId,
+          phone: user.phone,
           ward: user.ward,
         },
         temporaryPassword,

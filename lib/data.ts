@@ -81,6 +81,7 @@ export async function getDashboardOverview(
       rooms: {
         include: {
           patients: {
+            where: { status: "ACTIVE" },
             include: {
               devices: {
                 include: {
@@ -90,12 +91,18 @@ export async function getDashboardOverview(
                   },
                   alerts: {
                     where: {
-                      createdAt: {
-                        gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
-                      },
+                      status: { in: ["ACTIVE", "ACKNOWLEDGED"] },
                     },
                   },
                 },
+              },
+            },
+          },
+          devices: {
+            include: {
+              readings: { orderBy: { recordedAt: "desc" }, take: 1 },
+              alerts: {
+                where: { status: { in: ["ACTIVE", "ACKNOWLEDGED"] } },
               },
             },
           },
@@ -246,7 +253,9 @@ export async function getWardWithRooms(session: SessionPayload, wardId: string) 
       rooms: {
         orderBy: { number: "asc" },
         include: {
-          _count: { select: { patients: true } },
+          _count: {
+            select: { patients: { where: { status: "ACTIVE" } } },
+          },
         },
       },
     },
@@ -265,6 +274,7 @@ export async function getRoomDetail(
     include: {
       ward: true,
       patients: {
+        where: { status: "ACTIVE" },
         orderBy: { fullName: "asc" },
         include: {
           devices: {
@@ -274,7 +284,189 @@ export async function getRoomDetail(
           },
         },
       },
+      devices: true,
     },
+  });
+}
+
+export type BedCard = {
+  roomId: string;
+  roomNumber: string;
+  wardId: string;
+  wardName: string;
+  occupancy: "occupied" | "empty";
+  patientId: string | null;
+  patientName: string | null;
+  patientCode: string | null;
+  age: number | null;
+  sex: string | null;
+  status: MonitorStatus;
+  scoreTotal: number;
+  online: boolean;
+  hasDevice: boolean;
+  openAlerts: number;
+  heartRate: number | null;
+  spo2: number | null;
+  tempC: number | null;
+  systolic: number | null;
+  diastolic: number | null;
+  bpMeasuredAt: string | null;
+  bpMeasuredAge: string | null;
+  lastReadingAge: string | null;
+};
+
+export async function getBedsOverview(
+  session: SessionPayload,
+): Promise<BedCard[]> {
+  const rooms = await prisma.room.findMany({
+    where: {
+      ward: wardsWhereForSession(session),
+    },
+    orderBy: [{ ward: { name: "asc" } }, { number: "asc" }],
+    include: {
+      ward: true,
+      patients: {
+        where: { status: "ACTIVE" },
+        take: 1,
+        include: {
+          devices: {
+            include: {
+              readings: { orderBy: { recordedAt: "desc" }, take: 1 },
+              alerts: {
+                where: { status: { in: ["ACTIVE", "ACKNOWLEDGED"] } },
+              },
+            },
+          },
+        },
+      },
+      devices: {
+        include: {
+          readings: { orderBy: { recordedAt: "desc" }, take: 1 },
+          alerts: {
+            where: { status: { in: ["ACTIVE", "ACKNOWLEDGED"] } },
+          },
+        },
+      },
+    },
+  });
+
+  return rooms.map((room) => {
+    const patient = room.patients[0] ?? null;
+    const device =
+      patient?.devices[0] ??
+      room.devices.find((d) => d.patientId === patient?.id) ??
+      room.devices[0] ??
+      null;
+    const reading = device?.readings[0] ?? null;
+    const resolved = resolveMonitorStatus({
+      hasDevice: Boolean(device),
+      lastSeen: device?.lastSeen,
+      reading,
+    });
+    const bpAt =
+      reading?.systolic != null || reading?.diastolic != null
+        ? reading.recordedAt
+        : null;
+
+    return {
+      roomId: room.id,
+      roomNumber: room.number,
+      wardId: room.wardId,
+      wardName: room.ward.name,
+      occupancy: patient ? ("occupied" as const) : ("empty" as const),
+      patientId: patient?.id ?? null,
+      patientName: patient?.fullName ?? null,
+      patientCode: patient?.patientCode ?? null,
+      age: patient?.age ?? null,
+      sex: patient?.sex ?? null,
+      status: resolved.status,
+      scoreTotal: resolved.scoreTotal,
+      online: resolved.online,
+      hasDevice: Boolean(device),
+      openAlerts: device?.alerts.length ?? 0,
+      heartRate: reading?.heartRate ?? null,
+      spo2: reading?.spo2 ?? null,
+      tempC: reading?.tempC ?? null,
+      systolic: reading?.systolic ?? null,
+      diastolic: reading?.diastolic ?? null,
+      bpMeasuredAt: bpAt?.toISOString() ?? null,
+      bpMeasuredAge: formatRelativeAge(bpAt),
+      lastReadingAge: formatRelativeAge(reading?.recordedAt),
+    };
+  });
+}
+
+export type AlertFeedItem = {
+  id: string;
+  alertType: string;
+  status: string;
+  value: number | null;
+  createdAt: string;
+  createdAge: string | null;
+  acknowledgedAt: string | null;
+  deviceName: string;
+  wardId: string;
+  wardName: string;
+  roomNumber: string;
+  patientId: string | null;
+  patientName: string | null;
+  patientCode: string | null;
+};
+
+export async function getAlertsFeed(
+  session: SessionPayload,
+  opts?: { status?: string },
+): Promise<AlertFeedItem[]> {
+  const wardFilter = wardsWhereForSession(session);
+  const statusFilter =
+    opts?.status && opts.status !== "all"
+      ? { status: opts.status }
+      : undefined;
+
+  const alerts = await prisma.alert.findMany({
+    where: {
+      ...statusFilter,
+      device: {
+        OR: [
+          { room: { ward: wardFilter } },
+          { patient: { room: { ward: wardFilter } } },
+        ],
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    include: {
+      device: {
+        include: {
+          room: { include: { ward: true } },
+          patient: { include: { room: { include: { ward: true } } } },
+        },
+      },
+    },
+  });
+
+  return alerts.map((a) => {
+    const ward =
+      a.device.room?.ward ?? a.device.patient?.room.ward ?? null;
+    const roomNumber =
+      a.device.room?.number ?? a.device.patient?.room.number ?? "?";
+    const patient = a.device.patient;
+    return {
+      id: a.id,
+      alertType: a.alertType,
+      status: a.status,
+      value: a.value,
+      createdAt: a.createdAt.toISOString(),
+      createdAge: formatRelativeAge(a.createdAt),
+      acknowledgedAt: a.acknowledgedAt?.toISOString() ?? null,
+      deviceName: a.device.deviceName,
+      wardId: ward?.id ?? "",
+      wardName: ward?.name ?? "—",
+      roomNumber,
+      patientId: patient?.id ?? null,
+      patientName: patient?.fullName ?? null,
+      patientCode: patient?.patientCode ?? null,
+    };
   });
 }
 
@@ -286,6 +478,7 @@ export async function getPatientDetail(
     where: { id: patientId },
     include: {
       room: { include: { ward: true } },
+      thresholdOverride: true,
       devices: {
         include: {
           readings: { orderBy: { recordedAt: "desc" }, take: 60 },
@@ -313,12 +506,20 @@ export function serializePatientDetail(
     reading: latest,
   });
   const latestScore = latest ? aggregateScore(latest) : null;
+  const lastBp = readings.find(
+    (r) => r.systolic != null || r.diastolic != null,
+  );
 
   return {
     id: patient.id,
     fullName: patient.fullName,
     patientCode: patient.patientCode,
+    age: patient.age,
+    sex: patient.sex,
+    admissionReason: patient.admissionReason,
+    patientStatus: patient.status,
     admittedAt: patient.admittedAt.toISOString(),
+    dischargedAt: patient.dischargedAt?.toISOString() ?? null,
     roomId: patient.roomId,
     wardId: patient.room.wardId,
     wardName: patient.room.ward.name,
@@ -330,6 +531,7 @@ export function serializePatientDetail(
     status: resolved.status,
     online: resolved.online,
     latestScore,
+    hasThresholdOverride: Boolean(patient.thresholdOverride),
     latest: latest
       ? {
           heartRate: latest.heartRate,
@@ -339,6 +541,14 @@ export function serializePatientDetail(
           diastolic: latest.diastolic,
           recordedAt: latest.recordedAt.toISOString(),
           recordedAge: formatRelativeAge(latest.recordedAt),
+        }
+      : null,
+    bp: lastBp
+      ? {
+          systolic: lastBp.systolic,
+          diastolic: lastBp.diastolic,
+          measuredAt: lastBp.recordedAt.toISOString(),
+          measuredAge: formatRelativeAge(lastBp.recordedAt),
         }
       : null,
     readings: readings.map((r) => ({
@@ -354,6 +564,8 @@ export function serializePatientDetail(
     alerts: alerts.map((a) => ({
       id: a.id,
       alertType: a.alertType,
+      status: a.status,
+      value: a.value,
       createdAt: a.createdAt.toISOString(),
       createdAge: formatRelativeAge(a.createdAt),
     })),

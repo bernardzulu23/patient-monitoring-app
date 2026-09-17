@@ -1,4 +1,5 @@
 import { DashboardHeader } from "@/components/dashboard-header";
+import { IdleLogout } from "@/components/idle-logout";
 import { requireSession } from "@/lib/data";
 
 export default async function DashboardLayout({
@@ -10,6 +11,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen atmosphere">
+      <IdleLogout />
       <div className="pointer-events-none fixed inset-0 atmosphere-grid opacity-50" />
       <div className="relative">
         <DashboardHeader session={session} />

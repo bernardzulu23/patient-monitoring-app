@@ -156,6 +156,8 @@ async function main() {
       passwordHash,
       role: "admin",
       wardId: null,
+      displayName: "Hospital Admin",
+      staffId: "ADM-001",
     },
   });
   console.log("Created admin: admin@hospital.test");
@@ -166,9 +168,18 @@ async function main() {
       passwordHash,
       role: "doctor",
       wardId: null,
+      displayName: "Demo Doctor",
+      staffId: "DR-001",
+      phone: "+260000000001",
     },
   });
   console.log("Created doctor: doctor@hospital.test");
+
+  await prisma.hospitalThresholds.upsert({
+    where: { id: "default" },
+    create: { id: "default" },
+    update: {},
+  });
 
   let patientSeq = 1;
 
@@ -184,6 +195,9 @@ async function main() {
         passwordHash,
         role: "nurse",
         wardId: ward.id,
+        displayName: `Nurse ${wardName}`,
+        staffId: `N-${wi + 1}`,
+        phone: `+26090000000${wi}`,
       },
     });
 
@@ -206,6 +220,15 @@ async function main() {
         roomId: room.id,
         fullName,
         patientCode,
+        age: 45 + wi,
+        sex: wi % 2 === 0 ? "F" : "M",
+        admissionReason:
+          profile === "urgent"
+            ? "Respiratory distress"
+            : profile === "low"
+              ? "Post-op observation"
+              : "General monitoring",
+        status: "ACTIVE",
       },
     });
 
@@ -213,6 +236,7 @@ async function main() {
     const device = await prisma.device.create({
       data: {
         patientId: patient.id,
+        roomId: room.id,
         deviceName: `ESP32-${slug}`,
         apiKey,
       },

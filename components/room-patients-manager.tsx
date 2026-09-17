@@ -14,6 +14,9 @@ type PatientRow = {
   id: string;
   fullName: string;
   patientCode: string;
+  age: number | null;
+  sex: string | null;
+  admissionReason: string | null;
   status: MonitorStatus;
   scoreTotal: number;
   heartRate: number | null;
@@ -52,6 +55,9 @@ export function RoomPatientsManager({
   const [editPatient, setEditPatient] = useState<PatientRow | null>(null);
   const [fullName, setFullName] = useState("");
   const [patientCode, setPatientCode] = useState(suggestedCode);
+  const [age, setAge] = useState("");
+  const [sex, setSex] = useState("");
+  const [admissionReason, setAdmissionReason] = useState("");
   const [moveRoomId, setMoveRoomId] = useState(roomId);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,7 +71,14 @@ export function RoomPatientsManager({
     const res = await fetch("/api/patients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomId, fullName, patientCode }),
+      body: JSON.stringify({
+        roomId,
+        fullName,
+        patientCode,
+        age: age === "" ? null : Number(age),
+        sex: sex || null,
+        admissionReason: admissionReason || null,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -77,6 +90,9 @@ export function RoomPatientsManager({
     setCreatedPatientId(id);
     setOpen(false);
     setFullName("");
+    setAge("");
+    setSex("");
+    setAdmissionReason("");
     router.refresh();
   }
 
@@ -104,20 +120,20 @@ export function RoomPatientsManager({
     router.refresh();
   }
 
-  async function deletePatient(patient: PatientRow) {
+  async function dischargePatient(patient: PatientRow) {
     if (
       !confirm(
-        `Delete patient ${patient.fullName}? This also removes their devices and readings.`,
+        `Discharge ${patient.fullName}? The bed will free; history is kept.`,
       )
     ) {
       return;
     }
-    const res = await fetch(`/api/patients/${patient.id}`, {
-      method: "DELETE",
+    const res = await fetch(`/api/patients/${patient.id}/discharge`, {
+      method: "POST",
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      alert((data as { error?: string }).error || "Delete failed");
+      alert((data as { error?: string }).error || "Discharge failed");
       return;
     }
     router.refresh();
@@ -150,10 +166,10 @@ export function RoomPatientsManager({
             href={`/dashboard/wards/${wardId}/rooms`}
             className="text-sm text-brand hover:underline"
           >
-            ← {wardName} rooms
+            ← {wardName} beds
           </Link>
           <h1 className="mt-2 font-display text-3xl font-semibold text-ink">
-            Room {roomNumber}
+            Bed {roomNumber}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             {patients.length} patient{patients.length === 1 ? "" : "s"}
@@ -166,11 +182,14 @@ export function RoomPatientsManager({
               setOpen(true);
               setPatientCode(suggestedCode);
               setFullName("");
+              setAge("");
+              setSex("");
+              setAdmissionReason("");
               setError("");
             }}
             className="rounded-lg bg-brand-deep px-3 py-2 text-sm font-semibold text-white hover:bg-brand"
           >
-            New Patient
+            Admit patient
           </button>
         )}
       </div>
@@ -198,7 +217,7 @@ export function RoomPatientsManager({
 
       {patients.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line bg-surface/60 px-6 py-12 text-center text-sm text-ink-muted">
-          No patients in this room yet.
+          No patients in this bed yet.
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-line bg-surface">
@@ -282,8 +301,8 @@ export function RoomPatientsManager({
                         <button
                           type="button"
                           className="rounded p-1.5 text-ink-muted hover:bg-alert-soft hover:text-alert"
-                          aria-label={`Delete ${p.fullName}`}
-                          onClick={() => deletePatient(p)}
+                          aria-label={`Discharge ${p.fullName}`}
+                          onClick={() => dischargePatient(p)}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -297,7 +316,7 @@ export function RoomPatientsManager({
         </div>
       )}
 
-      <Modal title="New patient" open={open} onClose={() => setOpen(false)}>
+      <Modal title="Admit patient" open={open} onClose={() => setOpen(false)}>
         <form onSubmit={createPatient} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium">Full name</label>
@@ -318,9 +337,36 @@ export function RoomPatientsManager({
               required
               className="w-full rounded-lg border border-line bg-white px-3 py-2 font-mono outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
-            <p className="mt-1 text-xs text-ink-muted">
-              Suggested next code — you can override.
-            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Age</label>
+              <input
+                type="number"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                className="w-full rounded-lg border border-line bg-white px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Sex</label>
+              <input
+                value={sex}
+                onChange={(e) => setSex(e.target.value)}
+                placeholder="F / M / Other"
+                className="w-full rounded-lg border border-line bg-white px-3 py-2"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">
+              Reason for admission
+            </label>
+            <input
+              value={admissionReason}
+              onChange={(e) => setAdmissionReason(e.target.value)}
+              className="w-full rounded-lg border border-line bg-white px-3 py-2"
+            />
           </div>
           {error && <p className="text-sm text-alert">{error}</p>}
           <div className="flex justify-end gap-2">
@@ -336,7 +382,7 @@ export function RoomPatientsManager({
               disabled={busy}
               className="rounded-lg bg-brand-deep px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
-              Create
+              Admit
             </button>
           </div>
         </form>
@@ -369,7 +415,7 @@ export function RoomPatientsManager({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium">Room</label>
+            <label className="mb-1.5 block text-sm font-medium">Bed</label>
             <select
               value={moveRoomId}
               onChange={(e) => setMoveRoomId(e.target.value)}
@@ -377,7 +423,7 @@ export function RoomPatientsManager({
             >
               {wardRooms.map((r) => (
                 <option key={r.id} value={r.id}>
-                  Room {r.number}
+                  Bed {r.number}
                 </option>
               ))}
             </select>

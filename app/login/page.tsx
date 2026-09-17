@@ -2,9 +2,14 @@ import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ idle?: string }>;
+}) {
   const session = await getSession();
   if (session) redirect("/dashboard");
+  const { idle } = await searchParams;
 
   return (
     <div className="relative min-h-screen atmosphere overflow-hidden">
@@ -29,6 +34,9 @@ export default async function LoginPage() {
           <h1 className="text-lg font-semibold text-ink">Sign in</h1>
           <p className="mt-1 mb-6 text-sm text-ink-muted">
             Use your hospital email and password.
+            {idle === "1"
+              ? " Your session ended after inactivity."
+              : " Password resets are issued by an admin (no email reset)."}
           </p>
           <LoginForm />
         </div>
