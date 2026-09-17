@@ -8,13 +8,13 @@ import { CopyOnceBlock } from "@/components/copy-once-block";
 import { Modal } from "@/components/modal";
 import { ScoreBadge } from "@/components/score-badge";
 import { VitalChip } from "@/components/vital-chip";
-import type { ScoreLevel } from "@/lib/vitalScore";
+import type { MonitorStatus } from "@/lib/ingestReading";
 
 type PatientRow = {
   id: string;
   fullName: string;
   patientCode: string;
-  scoreLevel: ScoreLevel;
+  status: MonitorStatus;
   scoreTotal: number;
   heartRate: number | null;
   spo2: number | null;
@@ -22,6 +22,8 @@ type PatientRow = {
   systolic: number | null;
   diastolic: number | null;
   hasDevice: boolean;
+  lastReadingAge: string | null;
+  lastSeenAge: string | null;
 };
 
 type RoomOption = { id: string; number: string };
@@ -230,11 +232,15 @@ export function RoomPatientsManager({
                     {p.patientCode}
                   </td>
                   <td className="px-4 py-3">
-                    {p.hasDevice ? (
-                      <ScoreBadge level={p.scoreLevel} total={p.scoreTotal} />
-                    ) : (
-                      <span className="text-ink-muted">No device</span>
-                    )}
+                    <div className="space-y-1">
+                      <ScoreBadge level={p.status} total={p.scoreTotal} />
+                      <p className="text-[11px] text-ink-muted">
+                        {p.lastReadingAge
+                          ? `Reading ${p.lastReadingAge}`
+                          : "No readings"}
+                        {p.lastSeenAge ? ` · seen ${p.lastSeenAge}` : ""}
+                      </p>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1.5">

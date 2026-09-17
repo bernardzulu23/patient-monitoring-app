@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Modal } from "@/components/modal";
 import { ScoreBadge } from "@/components/score-badge";
-import type { ScoreLevel } from "@/lib/vitalScore";
+import type { MonitorStatus } from "@/lib/ingestReading";
 
 export type WardSummary = {
   id: string;
@@ -14,9 +14,13 @@ export type WardSummary = {
   patientCount: number;
   roomCount: number;
   openAlerts: number;
-  scoreLevel: ScoreLevel;
+  scoreLevel: MonitorStatus;
   onlineDevices: number;
   deviceCount: number;
+  offlineDevices?: number;
+  urgentCount?: number;
+  lowCount?: number;
+  lastReadingAge?: string | null;
 };
 
 export function WardOverviewGrid({
@@ -90,7 +94,7 @@ export function WardOverviewGrid({
             style={{ animationDelay: `${i * 60}ms` }}
           >
             {isAdmin && (
-              <div className="absolute right-3 top-3 flex gap-1 opacity-70 group-hover:opacity-100">
+              <div className="absolute right-3 top-3 flex gap-1 opacity-40 group-hover:opacity-100">
                 <button
                   type="button"
                   className="rounded p-1.5 text-ink-muted hover:bg-brand-soft hover:text-brand"
@@ -114,7 +118,10 @@ export function WardOverviewGrid({
               </div>
             )}
 
-            <Link href={`/dashboard/wards/${ward.id}/rooms`} className="block pr-12">
+            <Link
+              href={`/dashboard/wards/${ward.id}/rooms`}
+              className="block pr-12"
+            >
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-lg font-semibold text-ink group-hover:text-brand-deep">
                   {ward.name}
@@ -122,7 +129,10 @@ export function WardOverviewGrid({
                 <ScoreBadge level={ward.scoreLevel} />
               </div>
               <p className="mt-1 text-xs text-ink-muted">
-                NEWS2-inspired · worst patient level
+                NEWS2-inspired · worst patient status
+                {ward.lastReadingAge
+                  ? ` · last reading ${ward.lastReadingAge}`
+                  : ""}
               </p>
               <dl className="mt-4 grid grid-cols-4 gap-2 text-sm">
                 <div>
@@ -138,15 +148,15 @@ export function WardOverviewGrid({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-ink-muted">Devices</dt>
-                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">
-                    {ward.deviceCount}
-                  </dd>
-                </div>
-                <div>
                   <dt className="text-ink-muted">Online</dt>
                   <dd className="mt-0.5 text-lg font-semibold tabular-nums text-brand">
                     {ward.onlineDevices}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-ink-muted">Alerts</dt>
+                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">
+                    {ward.openAlerts}
                   </dd>
                 </div>
               </dl>

@@ -1,4 +1,4 @@
-import { getWardOverview } from "@/lib/data";
+import { getDashboardOverview } from "@/lib/data";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
 
@@ -9,8 +9,8 @@ export async function GET() {
   }
 
   try {
-    const wards = await getWardOverview(session);
-    return NextResponse.json({ wards });
+    const overview = await getDashboardOverview(session);
+    return NextResponse.json(overview);
   } catch {
     return NextResponse.json(
       { error: "Database unavailable" },

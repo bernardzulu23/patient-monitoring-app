@@ -1,10 +1,10 @@
-import type { ScoreLevel } from "@/lib/vitalScore";
+import type { MonitorStatus } from "@/lib/ingestReading";
 
 export function ScoreBadge({
   level,
   total,
 }: {
-  level: ScoreLevel;
+  level: MonitorStatus;
   total?: number;
 }) {
   const styles =
@@ -12,10 +12,26 @@ export function ScoreBadge({
       ? "bg-alert-soft text-alert"
       : level === "LOW"
         ? "bg-warn-soft text-warn"
-        : "bg-ok-soft text-ok";
+        : level === "OFFLINE"
+          ? "bg-ink-muted/15 text-ink-muted"
+          : level === "NO_DATA"
+            ? "bg-ink-muted/10 text-ink-muted"
+            : "bg-ok-soft text-ok";
 
   const label =
-    level === "NORMAL" ? "Clear" : level === "LOW" ? "Low" : "Urgent";
+    level === "NORMAL"
+      ? "Clear"
+      : level === "LOW"
+        ? "Low"
+        : level === "URGENT"
+          ? "Urgent"
+          : level === "OFFLINE"
+            ? "Offline"
+            : "No data";
+
+  const showTotal =
+    typeof total === "number" &&
+    (level === "NORMAL" || level === "LOW" || level === "URGENT");
 
   return (
     <span
@@ -23,7 +39,7 @@ export function ScoreBadge({
       title="NEWS2-inspired aggregate (not full NEWS2)"
     >
       {label}
-      {typeof total === "number" ? ` · ${total}` : ""}
+      {showTotal ? ` · ${total}` : ""}
     </span>
   );
 }
