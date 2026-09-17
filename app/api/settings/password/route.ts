@@ -1,12 +1,22 @@
 import { logAction } from "@/lib/audit";
+import {
+  hashPassword,
+  MIN_PASSWORD_LENGTH,
+  passwordMeetsPolicy,
+  verifyPassword,
+} from "@/lib/password";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/session";
-import bcrypt from "bcryptjs";
+import { isAllowedRequestOrigin } from "@/lib/sameOrigin";
+import { createSession, getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  if (!isAllowedRequestOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -41,9 +51,11 @@ export async function POST(req: Request) {
     );
   }
 
-  if (newPassword.length < 8) {
+  if (!passwordMeetsPolicy(newPassword)) {
     return NextResponse.json(
-      { error: "New password must be at least 8 characters" },
+      {
+        error: `New password must be ${MIN_PASSWORD_LENGTH}–72 characters`,
+      },
       { status: 400 },
     );
   }
@@ -62,7 +74,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  const valid = await verifyPassword(currentPassword, user.passwordHash);
   if (!valid) {
     return NextResponse.json(
       { error: "Current password is incorrect" },
@@ -70,12 +82,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await hashPassword(newPassword);
   await prisma.user.update({
     where: { id: user.id },
     data: { passwordHash },
   });
 
+  await createSession(user.id, user.role, user.wardId);
   await logAction(session.userId, "CHANGED_PASSWORD", "User", user.id);
 
   return NextResponse.json({ success: true });

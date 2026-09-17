@@ -20,8 +20,9 @@ export function LoginForm() {
     try {
       const res = await fetch("/api/login", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       if (res.ok) {
@@ -29,22 +30,30 @@ export function LoginForm() {
         router.refresh();
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(
-          (data as { error?: string }).error ||
-            `Login failed (${res.status})`,
-        );
+        const message = (data as { error?: string }).error;
+        if (res.status === 429) {
+          setError(
+            message || "Too many sign-in attempts. Try again in a few minutes.",
+          );
+        } else if (res.status >= 500) {
+          setError("Sign-in is temporarily unavailable. Try again shortly.");
+        } else {
+          setError(message || "Invalid email or password");
+        }
       }
     } catch {
-      setError(
-        "Cannot reach the server. Is npm run dev running? Try http://127.0.0.1:3000",
-      );
+      setError("Cannot reach the server. Try again in a moment.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 animate-rise">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-5 animate-rise"
+      autoComplete="on"
+    >
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-ink mb-1.5">
           Email
@@ -55,7 +64,9 @@ export function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          autoComplete="email"
+          autoComplete="username"
+          inputMode="email"
+          maxLength={254}
           className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </div>
@@ -75,6 +86,7 @@ export function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
+            maxLength={72}
             className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 pr-11 text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
           <button

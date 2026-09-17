@@ -34,7 +34,7 @@ export function DashboardHeader({
                 href="/dashboard/staff"
                 className="text-ink-muted hover:text-brand"
               >
-                Staff
+                Accounts
               </Link>
             )}
             {isAdmin(session) && (
