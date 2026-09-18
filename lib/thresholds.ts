@@ -8,6 +8,8 @@ export type ThresholdValues = {
   spo2Low: number;
   sysLow: number;
   sysHigh: number;
+  rrLow: number;
+  rrHigh: number;
 };
 
 export const DEFAULT_THRESHOLDS: ThresholdValues = {
@@ -18,6 +20,8 @@ export const DEFAULT_THRESHOLDS: ThresholdValues = {
   spo2Low: 92,
   sysLow: 90,
   sysHigh: 180,
+  rrLow: 8,
+  rrHigh: 25,
 };
 
 export type ThresholdBreach = {
@@ -36,6 +40,8 @@ export function mergeThresholds(
     spo2Low: number | null;
     sysLow: number | null;
     sysHigh: number | null;
+    rrLow: number | null;
+    rrHigh: number | null;
   }> | null,
 ): ThresholdValues {
   if (!override) return hospital;
@@ -47,6 +53,8 @@ export function mergeThresholds(
     spo2Low: override.spo2Low ?? hospital.spo2Low,
     sysLow: override.sysLow ?? hospital.sysLow,
     sysHigh: override.sysHigh ?? hospital.sysHigh,
+    rrLow: override.rrLow ?? hospital.rrLow,
+    rrHigh: override.rrHigh ?? hospital.rrHigh,
   };
 }
 
@@ -56,6 +64,7 @@ export function evaluateThresholdBreaches(
     spo2?: number | null;
     tempC?: number | null;
     systolic?: number | null;
+    respiratoryRate?: number | null;
   },
   t: ThresholdValues,
 ): ThresholdBreach[] {
@@ -88,6 +97,19 @@ export function evaluateThresholdBreaches(
       });
     }
   }
+  if (vitals.respiratoryRate != null) {
+    if (vitals.respiratoryRate < t.rrLow) {
+      breaches.push({
+        alertType: "THRESH_LOW_RR",
+        value: vitals.respiratoryRate,
+      });
+    } else if (vitals.respiratoryRate > t.rrHigh) {
+      breaches.push({
+        alertType: "THRESH_HIGH_RR",
+        value: vitals.respiratoryRate,
+      });
+    }
+  }
 
   return breaches;
 }
@@ -106,6 +128,8 @@ export async function getHospitalThresholds(): Promise<ThresholdValues> {
     spo2Low: row.spo2Low,
     sysLow: row.sysLow,
     sysHigh: row.sysHigh,
+    rrLow: row.rrLow,
+    rrHigh: row.rrHigh,
   };
 }
 

@@ -34,6 +34,8 @@ export default async function DashboardPage() {
               offline: 0,
               online: 0,
               openAlerts: 0,
+              activePatients: 0,
+              occupancyPercent: null,
             },
           }
         }

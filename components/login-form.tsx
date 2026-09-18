@@ -26,7 +26,10 @@ export function LoginForm() {
       });
 
       if (res.ok) {
-        router.push("/dashboard");
+        const data = await res.json().catch(() => ({}));
+        const role = (data as { role?: string }).role;
+        const dest = role === "nurse" ? "/dashboard/beds" : "/dashboard";
+        router.push(dest);
         router.refresh();
       } else {
         const data = await res.json().catch(() => ({}));
@@ -114,6 +117,30 @@ export function LoginForm() {
       >
         {loading ? "Signing in…" : "Sign in"}
       </button>
+
+      <ForgotPasswordHint />
     </form>
+  );
+}
+
+function ForgotPasswordHint() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="text-center">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-sm text-brand hover:underline"
+      >
+        Forgot password?
+      </button>
+      {open && (
+        <p className="mt-2 rounded-md border border-line bg-bg/60 px-3 py-2 text-left text-xs text-ink-muted">
+          There is no email reset. Ask a hospital admin to issue a temporary
+          password from <strong>Admin → Staff accounts</strong>, then change it
+          under Settings after you sign in.
+        </p>
+      )}
+    </div>
   );
 }

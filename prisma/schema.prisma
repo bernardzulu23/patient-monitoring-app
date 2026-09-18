@@ -11,11 +11,13 @@ datasource db {
 }
 
 model Ward {
-  id        String   @id @default(cuid())
-  name      String
-  rooms     Room[]
-  users     User[]
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  department  String?
+  bedCapacity Int?
+  rooms       Room[]
+  users       User[]
+  createdAt   DateTime @default(now())
 }
 
 model Room {
@@ -23,6 +25,7 @@ model Room {
   wardId    String
   ward      Ward      @relation(fields: [wardId], references: [id])
   number    String
+  status    String    @default("EMPTY") // EMPTY | OCCUPIED | RESERVED | CLEANING
   patients  Patient[]
   devices   Device[]
   createdAt DateTime  @default(now())
@@ -42,6 +45,10 @@ model Patient {
   status            String                    @default("ACTIVE") // ACTIVE | DISCHARGED
   admittedAt        DateTime                  @default(now())
   dischargedAt      DateTime?
+  admittingDoctorId String?
+  admittingDoctor   User?                     @relation("AdmittingDoctor", fields: [admittingDoctorId], references: [id], onDelete: SetNull)
+  assignedNurseId   String?
+  assignedNurse     User?                     @relation("AssignedNurse", fields: [assignedNurseId], references: [id], onDelete: SetNull)
   devices           Device[]
   thresholdOverride PatientThresholdOverride?
 }
@@ -60,16 +67,17 @@ model Device {
 }
 
 model Reading {
-  id         String   @id @default(cuid())
-  deviceId   String
-  device     Device   @relation(fields: [deviceId], references: [id])
-  heartRate  Int?
-  spo2       Int?
-  tempC      Float?
-  systolic   Int?
-  diastolic  Int?
-  recordedAt DateTime @default(now())
-  alerts     Alert[]
+  id              String   @id @default(cuid())
+  deviceId        String
+  device          Device   @relation(fields: [deviceId], references: [id])
+  heartRate       Int?
+  spo2            Int?
+  tempC           Float?
+  systolic        Int?
+  diastolic       Int?
+  respiratoryRate Int?
+  recordedAt      DateTime @default(now())
+  alerts          Alert[]
 }
 
 model Alert {
@@ -93,17 +101,19 @@ model Alert {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
-  role         String // "admin" | "doctor" | "nurse"
-  displayName  String?
-  staffId      String?
-  phone        String?
-  wardId       String?
-  ward         Ward?      @relation(fields: [wardId], references: [id])
-  auditLogs    AuditLog[]
-  alertAcks    Alert[]    @relation("AlertAcks")
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String
+  role            String // "admin" | "doctor" | "nurse"
+  displayName     String?
+  staffId         String?
+  phone           String?
+  wardId          String?
+  ward            Ward?      @relation(fields: [wardId], references: [id])
+  auditLogs       AuditLog[]
+  alertAcks       Alert[]    @relation("AlertAcks")
+  admittingFor    Patient[]  @relation("AdmittingDoctor")
+  assignedNurseFor Patient[] @relation("AssignedNurse")
 }
 
 // Next steps (out of scope for this project): field-level encryption of AuditLog
@@ -134,6 +144,16 @@ model LandingImage {
   @@index([slot])
 }
 
+/** Public contact form submissions. */
+model ContactMessage {
+  id          String    @id @default(cuid())
+  name        String
+  institution String
+  message     String
+  createdAt   DateTime  @default(now())
+  readAt      DateTime?
+}
+
 /** Hospital-wide vital threshold defaults (admin-configurable). Placeholders — not medical advice. */
 model HospitalThresholds {
   id        String   @id @default("default")
@@ -144,6 +164,8 @@ model HospitalThresholds {
   spo2Low   Int      @default(92)
   sysLow    Int      @default(90)
   sysHigh   Int      @default(180)
+  rrLow     Int      @default(8)
+  rrHigh    Int      @default(25)
   updatedAt DateTime @updatedAt
   updatedById String?
 }
@@ -160,5 +182,7 @@ model PatientThresholdOverride {
   spo2Low   Int?
   sysLow    Int?
   sysHigh   Int?
+  rrLow     Int?
+  rrHigh    Int?
   updatedAt DateTime @updatedAt
 }

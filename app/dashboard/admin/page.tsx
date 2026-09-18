@@ -25,6 +25,11 @@ const links = [
     desc: "Security-oriented audit event stream.",
   },
   {
+    href: "/dashboard/admin/messages",
+    title: "Contact messages",
+    desc: "Inbox from the public Contact form.",
+  },
+  {
     href: "/dashboard/site",
     title: "Landing images",
     desc: "Upload hero and gallery photos for the public home page.",

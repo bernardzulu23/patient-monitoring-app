@@ -47,8 +47,11 @@ export type AttentionPatient = {
 export type WardSummary = {
   id: string;
   name: string;
+  department: string | null;
+  bedCapacity: number | null;
   patientCount: number;
   roomCount: number;
+  occupancyPercent: number | null;
   openAlerts: number;
   scoreLevel: MonitorStatus;
   onlineDevices: number;
@@ -68,6 +71,8 @@ export type DashboardOverview = {
     offline: number;
     online: number;
     openAlerts: number;
+    activePatients: number;
+    occupancyPercent: number | null;
   };
 };
 
@@ -117,6 +122,8 @@ export async function getDashboardOverview(
   let totalOffline = 0;
   let totalOnline = 0;
   let totalOpenAlerts = 0;
+  let totalActivePatients = 0;
+  let totalCapacityBeds = 0;
 
   const wardSummaries: WardSummary[] = wards.map((ward) => {
     const patients = ward.rooms.flatMap((r) =>
@@ -197,6 +204,12 @@ export async function getDashboardOverview(
       }
     }
 
+    const capacity = ward.bedCapacity ?? ward.rooms.length;
+    totalCapacityBeds += capacity;
+    totalActivePatients += patients.length;
+    const occupancyPercent =
+      capacity > 0 ? Math.round((patients.length / capacity) * 100) : null;
+
     totalUrgent += urgentCount;
     totalLow += lowCount;
     totalOffline += offlineDevices;
@@ -206,8 +219,11 @@ export async function getDashboardOverview(
     return {
       id: ward.id,
       name: ward.name,
+      department: ward.department,
+      bedCapacity: ward.bedCapacity,
       patientCount: patients.length,
       roomCount: ward.rooms.length,
+      occupancyPercent,
       openAlerts,
       scoreLevel: worstMonitorStatus(statuses),
       onlineDevices,
@@ -225,6 +241,11 @@ export async function getDashboardOverview(
     return rank(a.status) - rank(b.status);
   });
 
+  const overallOccupancy =
+    totalCapacityBeds > 0
+      ? Math.round((totalActivePatients / totalCapacityBeds) * 100)
+      : null;
+
   return {
     wards: wardSummaries,
     attention,
@@ -234,6 +255,8 @@ export async function getDashboardOverview(
       offline: totalOffline,
       online: totalOnline,
       openAlerts: totalOpenAlerts,
+      activePatients: totalActivePatients,
+      occupancyPercent: overallOccupancy,
     },
   };
 }
@@ -294,6 +317,7 @@ export type BedCard = {
   roomNumber: string;
   wardId: string;
   wardName: string;
+  bedStatus: string;
   occupancy: "occupied" | "empty";
   patientId: string | null;
   patientName: string | null;
@@ -310,6 +334,7 @@ export type BedCard = {
   tempC: number | null;
   systolic: number | null;
   diastolic: number | null;
+  respiratoryRate: number | null;
   bpMeasuredAt: string | null;
   bpMeasuredAge: string | null;
   lastReadingAge: string | null;
@@ -373,6 +398,7 @@ export async function getBedsOverview(
       roomNumber: room.number,
       wardId: room.wardId,
       wardName: room.ward.name,
+      bedStatus: room.status,
       occupancy: patient ? ("occupied" as const) : ("empty" as const),
       patientId: patient?.id ?? null,
       patientName: patient?.fullName ?? null,
@@ -389,6 +415,7 @@ export async function getBedsOverview(
       tempC: reading?.tempC ?? null,
       systolic: reading?.systolic ?? null,
       diastolic: reading?.diastolic ?? null,
+      respiratoryRate: reading?.respiratoryRate ?? null,
       bpMeasuredAt: bpAt?.toISOString() ?? null,
       bpMeasuredAge: formatRelativeAge(bpAt),
       lastReadingAge: formatRelativeAge(reading?.recordedAt),
@@ -479,6 +506,12 @@ export async function getPatientDetail(
     include: {
       room: { include: { ward: true } },
       thresholdOverride: true,
+      admittingDoctor: {
+        select: { id: true, displayName: true, email: true },
+      },
+      assignedNurse: {
+        select: { id: true, displayName: true, email: true },
+      },
       devices: {
         include: {
           readings: { orderBy: { recordedAt: "desc" }, take: 60 },
@@ -518,6 +551,21 @@ export function serializePatientDetail(
     sex: patient.sex,
     admissionReason: patient.admissionReason,
     patientStatus: patient.status,
+    admittingDoctor: patient.admittingDoctor
+      ? {
+          id: patient.admittingDoctor.id,
+          name:
+            patient.admittingDoctor.displayName ||
+            patient.admittingDoctor.email,
+        }
+      : null,
+    assignedNurse: patient.assignedNurse
+      ? {
+          id: patient.assignedNurse.id,
+          name:
+            patient.assignedNurse.displayName || patient.assignedNurse.email,
+        }
+      : null,
     admittedAt: patient.admittedAt.toISOString(),
     dischargedAt: patient.dischargedAt?.toISOString() ?? null,
     roomId: patient.roomId,
@@ -539,6 +587,7 @@ export function serializePatientDetail(
           tempC: latest.tempC,
           systolic: latest.systolic,
           diastolic: latest.diastolic,
+          respiratoryRate: latest.respiratoryRate,
           recordedAt: latest.recordedAt.toISOString(),
           recordedAge: formatRelativeAge(latest.recordedAt),
         }
@@ -558,6 +607,7 @@ export function serializePatientDetail(
       tempC: r.tempC,
       systolic: r.systolic,
       diastolic: r.diastolic,
+      respiratoryRate: r.respiratoryRate,
       recordedAt: r.recordedAt.toISOString(),
       score: aggregateScore(r),
     })),

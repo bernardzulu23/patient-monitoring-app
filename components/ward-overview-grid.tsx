@@ -11,8 +11,11 @@ import type { MonitorStatus } from "@/lib/ingestReading";
 export type WardSummary = {
   id: string;
   name: string;
+  department?: string | null;
+  bedCapacity?: number | null;
   patientCount: number;
   roomCount: number;
+  occupancyPercent?: number | null;
   openAlerts: number;
   scoreLevel: MonitorStatus;
   onlineDevices: number;
@@ -130,6 +133,10 @@ export function WardOverviewGrid({
               </div>
               <p className="mt-1 text-xs text-ink-muted">
                 NEWS2-inspired · worst patient status
+                {ward.department ? ` · ${ward.department}` : ""}
+                {ward.occupancyPercent != null
+                  ? ` · ${ward.occupancyPercent}% occupancy`
+                  : ""}
                 {ward.lastReadingAge
                   ? ` · last reading ${ward.lastReadingAge}`
                   : ""}

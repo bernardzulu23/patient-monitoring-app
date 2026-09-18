@@ -35,6 +35,8 @@ export type DashboardLiveData = {
     offline: number;
     online: number;
     openAlerts: number;
+    activePatients: number;
+    occupancyPercent: number | null;
   };
 };
 
@@ -135,7 +137,7 @@ export function WardOverviewLive({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
         <StatTile
           label="Urgent"
           value={totals.urgent}
@@ -152,6 +154,13 @@ export function WardOverviewLive({
           label="Open alerts"
           value={totals.openAlerts}
           tone={totals.openAlerts > 0 ? "warn" : "muted"}
+        />
+        <StatTile label="Patients" value={totals.activePatients} tone="muted" />
+        <StatTile
+          label="Occupancy"
+          value={totals.occupancyPercent ?? 0}
+          suffix={totals.occupancyPercent != null ? "%" : ""}
+          tone="ok"
         />
       </div>
 
@@ -246,10 +255,12 @@ function StatTile({
   label,
   value,
   tone,
+  suffix = "",
 }: {
   label: string;
   value: number;
   tone: "alert" | "warn" | "ok" | "muted";
+  suffix?: string;
 }) {
   const valueClass =
     tone === "alert"
@@ -267,6 +278,7 @@ function StatTile({
       </p>
       <p className={`mt-1 text-2xl font-semibold tabular-nums ${valueClass}`}>
         {value}
+        {suffix}
       </p>
     </div>
   );

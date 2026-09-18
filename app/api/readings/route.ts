@@ -17,6 +17,7 @@ const PHYSIO_RANGES: Record<string, { min: number; max: number }> = {
   tempC: { min: 25, max: 45 },
   systolic: { min: 40, max: 300 },
   diastolic: { min: 20, max: 200 },
+  respiratoryRate: { min: 4, max: 60 },
 };
 
 function findOutOfRangeField(
@@ -69,13 +70,17 @@ export async function POST(req: Request) {
     const tempC = asOptionalNumber(raw.tempC);
     const systolic = asOptionalNumber(raw.systolic);
     const diastolic = asOptionalNumber(raw.diastolic);
+    const respiratoryRate = asOptionalNumber(
+      raw.respiratoryRate ?? raw.rr,
+    );
 
     if (
       heartRate === undefined &&
       spo2 === undefined &&
       tempC === undefined &&
       systolic === undefined &&
-      diastolic === undefined
+      diastolic === undefined &&
+      respiratoryRate === undefined
     ) {
       return NextResponse.json(
         { error: "No vital signs provided" },
@@ -89,6 +94,7 @@ export async function POST(req: Request) {
       tempC,
       systolic,
       diastolic,
+      respiratoryRate,
     });
     if (outOfRange) {
       return NextResponse.json(
@@ -107,6 +113,7 @@ export async function POST(req: Request) {
       ...(tempC !== undefined ? { tempC } : {}),
       ...(systolic !== undefined ? { systolic } : {}),
       ...(diastolic !== undefined ? { diastolic } : {}),
+      ...(respiratoryRate !== undefined ? { respiratoryRate } : {}),
     };
 
     const { reading, score } = await ingestReadingForDevice(

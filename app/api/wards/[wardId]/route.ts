@@ -14,14 +14,38 @@ export async function PATCH(
   }
 
   const { wardId } = await params;
-  const { name } = await req.json();
-  if (typeof name !== "string" || !name.trim()) {
-    return NextResponse.json({ error: "Ward name is required" }, { status: 400 });
+  const body = await req.json();
+  const data: {
+    name?: string;
+    department?: string | null;
+    bedCapacity?: number | null;
+  } = {};
+
+  if (typeof body.name === "string" && body.name.trim()) {
+    data.name = body.name.trim();
+  }
+  if (body.department !== undefined) {
+    data.department =
+      typeof body.department === "string" && body.department.trim()
+        ? body.department.trim().slice(0, 120)
+        : null;
+  }
+  if (body.bedCapacity !== undefined) {
+    if (body.bedCapacity === null || body.bedCapacity === "") {
+      data.bedCapacity = null;
+    } else {
+      const n = Number(body.bedCapacity);
+      data.bedCapacity = Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "No changes provided" }, { status: 400 });
   }
 
   const ward = await prisma.ward.update({
     where: { id: wardId },
-    data: { name: name.trim() },
+    data,
   });
 
   await logAction(session.userId, "RENAMED_WARD", "Ward", ward.id);
