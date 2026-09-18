@@ -15,6 +15,7 @@ export type VitalsInput = {
   tempC?: number;
   systolic?: number;
   diastolic?: number;
+  respiratoryRate?: number;
   recordedAt?: Date;
 };
 
@@ -154,6 +155,7 @@ export async function ingestReadingForDevice(
     tempC,
     systolic,
     diastolic,
+    respiratoryRate,
     recordedAt = new Date(),
   } = vitals;
 
@@ -173,6 +175,7 @@ export async function ingestReadingForDevice(
       tempC: tempC ?? null,
       systolic: systolic ?? null,
       diastolic: diastolic ?? null,
+      respiratoryRate: respiratoryRate ?? null,
       recordedAt,
     },
   });
@@ -200,6 +203,7 @@ export async function ingestReadingForDevice(
       spo2: spo2 ?? null,
       tempC: tempC ?? null,
       systolic: systolic ?? null,
+      respiratoryRate: respiratoryRate ?? null,
     },
     thresholds,
   );
@@ -212,6 +216,8 @@ export async function ingestReadingForDevice(
     "THRESH_LOW_SPO2",
     "THRESH_LOW_SYSTOLIC",
     "THRESH_HIGH_SYSTOLIC",
+    "THRESH_LOW_RR",
+    "THRESH_HIGH_RR",
   ];
   const activeTypes = new Set(breaches.map((b) => b.alertType));
   const toResolve = allThreshTypes.filter((t) => !activeTypes.has(t));

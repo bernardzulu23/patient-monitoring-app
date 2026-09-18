@@ -35,6 +35,8 @@ export async function PUT(req: Request) {
     spo2Low: num(body.spo2Low, current.spo2Low),
     sysLow: num(body.sysLow, current.sysLow),
     sysHigh: num(body.sysHigh, current.sysHigh),
+    rrLow: num(body.rrLow, current.rrLow),
+    rrHigh: num(body.rrHigh, current.rrHigh),
     updatedById: session.userId,
   };
 
@@ -60,6 +62,8 @@ export async function PUT(req: Request) {
       spo2Low: row.spo2Low,
       sysLow: row.sysLow,
       sysHigh: row.sysHigh,
+      rrLow: row.rrLow,
+      rrHigh: row.rrHigh,
     },
   });
 }

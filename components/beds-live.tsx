@@ -11,9 +11,9 @@ const POLL_MS = 4000;
 export function BedsLive({ initial }: { initial: BedCard[] }) {
   const [beds, setBeds] = useState(initial);
   const [wardFilter, setWardFilter] = useState("all");
-  const [occupancy, setOccupancy] = useState<"all" | "occupied" | "empty">(
-    "all",
-  );
+  const [occupancy, setOccupancy] = useState<
+    "all" | "occupied" | "empty" | "RESERVED" | "CLEANING"
+  >("all");
   const [alertOnly, setAlertOnly] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
@@ -51,10 +51,19 @@ export function BedsLive({ initial }: { initial: BedCard[] }) {
 
   const filtered = beds.filter((b) => {
     if (wardFilter !== "all" && b.wardId !== wardFilter) return false;
-    if (occupancy !== "all" && b.occupancy !== occupancy) return false;
-    if (alertOnly && b.openAlerts === 0 && b.status === "NORMAL") return false;
-    if (alertOnly && b.openAlerts === 0 && b.status !== "URGENT" && b.status !== "LOW" && b.status !== "OFFLINE")
+    if (occupancy === "occupied" && b.occupancy !== "occupied") return false;
+    if (occupancy === "empty" && b.bedStatus !== "EMPTY") return false;
+    if (occupancy === "RESERVED" && b.bedStatus !== "RESERVED") return false;
+    if (occupancy === "CLEANING" && b.bedStatus !== "CLEANING") return false;
+    if (
+      alertOnly &&
+      b.openAlerts === 0 &&
+      b.status !== "URGENT" &&
+      b.status !== "LOW" &&
+      b.status !== "OFFLINE"
+    ) {
       return false;
+    }
     return true;
   });
 
@@ -88,13 +97,22 @@ export function BedsLive({ initial }: { initial: BedCard[] }) {
         <select
           value={occupancy}
           onChange={(e) =>
-            setOccupancy(e.target.value as "all" | "occupied" | "empty")
+            setOccupancy(
+              e.target.value as
+                | "all"
+                | "occupied"
+                | "empty"
+                | "RESERVED"
+                | "CLEANING",
+            )
           }
           className="rounded-lg border border-line bg-white px-3 py-2 text-sm"
         >
           <option value="all">All beds</option>
           <option value="occupied">Occupied</option>
           <option value="empty">Empty</option>
+          <option value="RESERVED">Reserved</option>
+          <option value="CLEANING">Cleaning</option>
         </select>
         <label className="flex items-center gap-2 text-sm text-ink-muted">
           <input
@@ -138,6 +156,9 @@ function BedTile({ bed }: { bed: BedCard }) {
           <h2 className="text-lg font-semibold text-ink">
             Bed {bed.roomNumber}
           </h2>
+          <p className="text-[11px] uppercase tracking-wide text-ink-muted">
+            {bed.bedStatus}
+          </p>
         </div>
         <ScoreBadge level={bed.status} total={bed.scoreTotal} />
       </div>
@@ -156,6 +177,7 @@ function BedTile({ bed }: { bed: BedCard }) {
             <VitalChip label="HR" value={bed.heartRate} unit="bpm" />
             <VitalChip label="SpO₂" value={bed.spo2} unit="%" />
             <VitalChip label="Temp" value={bed.tempC} unit="°C" digits={1} />
+            <VitalChip label="RR" value={bed.respiratoryRate} unit="/min" />
           </div>
           <p className="mt-2 text-[11px] text-ink-muted">
             BP{" "}

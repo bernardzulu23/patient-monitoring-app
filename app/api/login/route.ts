@@ -98,7 +98,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      { success: true },
+      { success: true, role: user.role },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

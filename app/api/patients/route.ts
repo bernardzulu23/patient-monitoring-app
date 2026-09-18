@@ -40,9 +40,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (room.patients.length > 0) {
+  if (room.patients.length > 0 || room.status === "RESERVED") {
     return NextResponse.json(
-      { error: "This bed already has an active patient" },
+      {
+        error:
+          room.status === "RESERVED"
+            ? "This bed is reserved"
+            : "This bed already has an active patient",
+      },
+      { status: 409 },
+    );
+  }
+
+  if (room.status === "CLEANING") {
+    return NextResponse.json(
+      { error: "This bed is marked cleaning — set status to empty first" },
       { status: 409 },
     );
   }
@@ -60,23 +72,51 @@ export async function POST(req: Request) {
       ? body.admissionReason.trim().slice(0, 500)
       : null;
 
-  try {
-    const patient = await prisma.patient.create({
-      data: {
-        roomId,
-        fullName: fullName.trim(),
-        patientCode: patientCode.trim().toUpperCase(),
-        age: Number.isFinite(age as number) ? (age as number) : null,
-        sex,
-        admissionReason,
-        status: "ACTIVE",
-      },
+  let admittingDoctorId: string | null = null;
+  let assignedNurseId: string | null = null;
+  if (typeof body.admittingDoctorId === "string" && body.admittingDoctorId) {
+    const doc = await prisma.user.findFirst({
+      where: { id: body.admittingDoctorId, role: "doctor" },
     });
+    if (!doc) {
+      return NextResponse.json({ error: "Invalid doctor" }, { status: 400 });
+    }
+    admittingDoctorId = doc.id;
+  }
+  if (typeof body.assignedNurseId === "string" && body.assignedNurseId) {
+    const nurse = await prisma.user.findFirst({
+      where: { id: body.assignedNurseId, role: "nurse" },
+    });
+    if (!nurse) {
+      return NextResponse.json({ error: "Invalid nurse" }, { status: 400 });
+    }
+    assignedNurseId = nurse.id;
+  }
 
-    // Attach any bed-registered devices to this patient
-    await prisma.device.updateMany({
-      where: { roomId, patientId: null },
-      data: { patientId: patient.id },
+  try {
+    const patient = await prisma.$transaction(async (tx) => {
+      const created = await tx.patient.create({
+        data: {
+          roomId,
+          fullName: fullName.trim(),
+          patientCode: patientCode.trim().toUpperCase(),
+          age: Number.isFinite(age as number) ? (age as number) : null,
+          sex,
+          admissionReason,
+          status: "ACTIVE",
+          admittingDoctorId,
+          assignedNurseId,
+        },
+      });
+      await tx.room.update({
+        where: { id: roomId },
+        data: { status: "OCCUPIED" },
+      });
+      await tx.device.updateMany({
+        where: { roomId, patientId: null },
+        data: { patientId: created.id },
+      });
+      return created;
     });
 
     await logAction(session.userId, "CREATED_PATIENT", "Patient", patient.id);

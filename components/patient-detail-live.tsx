@@ -36,9 +36,12 @@ type PatientLivePayload = {
     tempC: number | null;
     systolic: number | null;
     diastolic: number | null;
+    respiratoryRate?: number | null;
     recordedAt: string;
     recordedAge: string | null;
   } | null;
+  admittingDoctor?: { id: string; name: string } | null;
+  assignedNurse?: { id: string; name: string } | null;
   bp: {
     systolic: number | null;
     diastolic: number | null;
@@ -212,6 +215,10 @@ export function PatientDetailLive({
             {" · admitted "}
             {new Date(data.admittedAt).toLocaleDateString()}
             {data.admissionReason ? ` · ${data.admissionReason}` : ""}
+            {data.admittingDoctor
+              ? ` · Dr ${data.admittingDoctor.name}`
+              : ""}
+            {data.assignedNurse ? ` · Nurse ${data.assignedNurse.name}` : ""}
             {data.deviceName ? ` · ${data.deviceName}` : " · no device"}
             {data.lastSeenAge ? ` · last seen ${data.lastSeenAge}` : ""}
           </p>
@@ -244,12 +251,18 @@ export function PatientDetailLive({
               {simBusy ? "Simulating…" : "Simulate reading"}
             </button>
           )}
-          <a
-            href={`/api/patients/${patientId}/export.csv`}
-            className="text-xs font-medium text-brand hover:underline"
-          >
-            Export CSV
-          </a>
+            <a
+              href={`/api/patients/${patientId}/export.csv`}
+              className="text-xs font-medium text-brand hover:underline"
+            >
+              Export CSV
+            </a>
+            <a
+              href={`/dashboard/patients/${patientId}/print`}
+              className="text-xs font-medium text-brand hover:underline"
+            >
+              Print / PDF
+            </a>
           {simError && <p className="text-xs text-alert">{simError}</p>}
           {data.canSimulate && (
             <p className="text-xs text-ink-muted">Demo without ESP32</p>
@@ -270,6 +283,11 @@ export function PatientDetailLive({
               value={data.latest.tempC}
               unit="°C"
               digits={1}
+            />
+            <VitalChip
+              label="RR"
+              value={data.latest.respiratoryRate ?? null}
+              unit="/min"
             />
             <VitalChip
               label="BP"

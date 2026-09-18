@@ -43,6 +43,8 @@ export function ThresholdsForm({ initial }: { initial: ThresholdValues }) {
     { key: "spo2Low", label: "SpO₂ low (%)" },
     { key: "sysLow", label: "Systolic low" },
     { key: "sysHigh", label: "Systolic high" },
+    { key: "rrLow", label: "RR low (/min)" },
+    { key: "rrHigh", label: "RR high (/min)" },
   ];
 
   return (

@@ -15,23 +15,23 @@ function jitter(base: number, spread: number) {
 function generateSimulatedVitals() {
   const roll = Math.random();
   if (roll < 0.12) {
-    // urgent-ish: low SpO2 + high HR
     return {
       heartRate: Math.round(118 + Math.random() * 12),
       spo2: Math.round(87 + Math.random() * 3),
       tempC: jitter(37.1, 0.3),
       systolic: Math.round(125 + Math.random() * 10),
       diastolic: Math.round(80 + Math.random() * 6),
+      respiratoryRate: Math.round(26 + Math.random() * 4),
     };
   }
   if (roll < 0.3) {
-    // low watch
     return {
       heartRate: Math.round(90 + Math.random() * 8),
       spo2: Math.round(93 + Math.random() * 2),
       tempC: jitter(37.0, 0.2),
       systolic: Math.round(120 + Math.random() * 8),
       diastolic: Math.round(78 + Math.random() * 5),
+      respiratoryRate: Math.round(20 + Math.random() * 3),
     };
   }
   return {
@@ -40,6 +40,7 @@ function generateSimulatedVitals() {
     tempC: jitter(36.7, 0.3),
     systolic: Math.round(112 + Math.random() * 14),
     diastolic: Math.round(72 + Math.random() * 8),
+    respiratoryRate: Math.round(14 + Math.random() * 4),
   };
 }
 

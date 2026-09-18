@@ -42,6 +42,10 @@ export async function POST(
         dischargedAt: new Date(),
       },
     }),
+    prisma.room.update({
+      where: { id: patient.roomId },
+      data: { status: "EMPTY" },
+    }),
   ]);
 
   await logAction(session.userId, "DISCHARGED_PATIENT", "Patient", patientId);
