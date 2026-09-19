@@ -88,3 +88,42 @@ body {
 .animate-rise {
   animation: rise-in 0.45s ease-out both;
 }
+
+/* Public marketing surfaces only — do not override dashboard --brand teal */
+.public-marketing {
+  --pm-blue: #0b6eb5;
+  --pm-blue-deep: #064a7a;
+  --pm-blue-soft: #e8f3fa;
+  --pm-lime: #9fc43a;
+  --pm-lime-hover: #8ab032;
+  --pm-charcoal: #3a3f45;
+  --pm-ink: #1f2933;
+  --pm-muted: #6b7280;
+  --pm-line: #d8dee6;
+  --pm-surface: #ffffff;
+  --pm-bg: #f4f7fa;
+  background: var(--pm-bg);
+  color: var(--pm-ink);
+}
+
+.public-marketing .atmosphere-clinical {
+  background:
+    radial-gradient(ellipse 70% 45% at 20% 10%, rgba(11, 110, 181, 0.35), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 90% 20%, rgba(6, 74, 122, 0.28), transparent 50%),
+    linear-gradient(165deg, #0b6eb5 0%, #064a7a 55%, #043556 100%);
+}
+
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-hero {
+  animation: hero-fade 0.7s ease-out both;
+}
