@@ -2,59 +2,81 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { MapPin } from "lucide-react";
 
 const links = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
   { href: "/docs", label: "Docs" },
+  { href: "/contact", label: "Contact" },
 ];
 
-export function PublicHeader({
-  signedIn,
-  light = false,
-}: {
-  signedIn: boolean;
-  light?: boolean;
-}) {
+const activeNav =
+  "relative bg-[#0b6eb5] px-3 py-2 text-[#ffffff] after:absolute after:left-1/2 after:top-full after:-translate-x-1/2 after:border-x-[6px] after:border-t-[6px] after:border-x-transparent after:border-t-[#0b6eb5]";
+const idleNav = "px-3 py-2 text-[#1f2933] hover:text-[#0b6eb5]";
+
+export function PublicHeader({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname();
-  const text = light ? "text-white/90 hover:text-white" : "text-ink-muted hover:text-brand";
-  const brand = light ? "text-white" : "text-brand-deep";
-  const active = light ? "text-white font-semibold" : "text-brand font-semibold";
+  const authHref = signedIn ? "/dashboard" : "/login";
+  const authLabel = signedIn ? "Dashboard" : "Sign In";
 
   return (
-    <header
-      className={
-        light
-          ? "absolute left-0 right-0 top-0 z-20"
-          : "border-b border-line/80 bg-surface/90 backdrop-blur-sm"
-      }
-    >
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-5">
-        <Link href="/" className={`font-display text-lg font-semibold tracking-tight ${brand}`}>
-          Patient Monitor
-        </Link>
-        <nav className="flex flex-wrap items-center gap-4 text-sm">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`${text} ${pathname === l.href ? active : ""}`}
-            >
-              {l.label}
+    <header className="relative z-30">
+      <div className="bg-[#0b6eb5] text-[#ffffff]">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-2 text-xs sm:text-sm">
+          <p className="inline-flex items-center gap-1.5 text-[#ffffff]">
+            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            Lusaka, Zambia
+          </p>
+          <div className="flex flex-wrap items-center gap-4 text-[#ffffff]">
+            <Link href="/docs" className="hover:underline">
+              Docs
             </Link>
-          ))}
-          <Link
-            href={signedIn ? "/dashboard" : "/login"}
-            className={
-              light
-                ? "rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-brand-deep"
-                : "rounded-lg bg-brand-deep px-3 py-1.5 text-sm font-semibold text-white"
-            }
-          >
-            {signedIn ? "Dashboard" : "Sign In"}
+            <Link href="/contact" className="hover:underline">
+              Contact
+            </Link>
+            <Link href={authHref} className="hover:underline">
+              {authLabel}
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b border-[#d8dee6] bg-[#ffffff]">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <Link href="/" className="group">
+            <span className="font-display text-xl font-semibold tracking-tight text-[#064a7a] sm:text-2xl">
+              Patient Monitor
+            </span>
+            <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-[0.14em] text-[#6b7280]">
+              Bedside vitals prototype
+            </span>
           </Link>
-        </nav>
+
+          <nav className="flex flex-wrap items-center gap-1 text-xs font-semibold uppercase tracking-wide sm:text-sm">
+            {links.map((l) => {
+              const isActive =
+                l.href === "/"
+                  ? pathname === "/"
+                  : pathname === l.href || pathname.startsWith(`${l.href}/`);
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className={isActive ? activeNav : idleNav}
+                >
+                  {l.label}
+                </Link>
+              );
+            })}
+            <Link
+              href={authHref}
+              className={pathname === "/login" ? activeNav : idleNav}
+            >
+              {authLabel}
+            </Link>
+          </nav>
+        </div>
       </div>
     </header>
   );
@@ -62,27 +84,25 @@ export function PublicHeader({
 
 export function PublicFooter() {
   return (
-    <footer className="border-t border-line bg-bg px-6 py-10">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <footer className="border-t border-[#d8dee6] bg-[#f4f7fa] px-6 py-10">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="font-display text-base font-semibold text-brand-deep">
+          <p className="font-display text-lg font-semibold text-[#064a7a]">
             Patient Monitor
           </p>
-          <p className="mt-1 text-sm text-ink-muted">
-            Prototype bedside vitals monitoring · Lusaka, Zambia
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#4b5563]">
+            Prototype bedside vitals monitoring for ward connectivity gaps ·
+            Lusaka, Zambia
           </p>
         </div>
-        <div className="flex flex-wrap gap-4 text-sm text-ink-muted">
-          <Link href="/about" className="hover:text-brand">
-            About
-          </Link>
-          <Link href="/contact" className="hover:text-brand">
-            Contact
-          </Link>
-          <Link href="/docs" className="hover:text-brand">
+        <div className="flex flex-wrap gap-5 text-sm font-medium text-[#064a7a]">
+          <Link href="/docs" className="hover:underline">
             Docs
           </Link>
-          <Link href="/login" className="hover:text-brand">
+          <Link href="/contact" className="hover:underline">
+            Contact
+          </Link>
+          <Link href="/login" className="hover:underline">
             Sign In
           </Link>
         </div>

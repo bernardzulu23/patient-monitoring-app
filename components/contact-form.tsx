@@ -55,7 +55,7 @@ export function ContactForm() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={120}
-          className="w-full rounded-lg border border-line bg-white px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="w-full rounded-lg border border-[#d8dee6] bg-white px-3 py-2 text-[#1f2933] outline-none focus:border-[#0b6eb5] focus:ring-2 focus:ring-[#0b6eb5]/20"
         />
       </div>
       <div>
@@ -67,7 +67,7 @@ export function ContactForm() {
           value={institution}
           onChange={(e) => setInstitution(e.target.value)}
           maxLength={180}
-          className="w-full rounded-lg border border-line bg-white px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="w-full rounded-lg border border-[#d8dee6] bg-white px-3 py-2 text-[#1f2933] outline-none focus:border-[#0b6eb5] focus:ring-2 focus:ring-[#0b6eb5]/20"
         />
       </div>
       <div>
@@ -78,14 +78,14 @@ export function ContactForm() {
           onChange={(e) => setMessage(e.target.value)}
           rows={5}
           maxLength={4000}
-          className="w-full rounded-lg border border-line bg-white px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="w-full rounded-lg border border-[#d8dee6] bg-white px-3 py-2 text-[#1f2933] outline-none focus:border-[#0b6eb5] focus:ring-2 focus:ring-[#0b6eb5]/20"
         />
       </div>
       {error && <p className="text-sm text-alert">{error}</p>}
       <button
         type="submit"
         disabled={busy}
-        className="rounded-lg bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        className="rounded-lg bg-[#064a7a] px-4 py-2.5 text-sm font-semibold text-[#ffffff] hover:bg-[#0b6eb5] disabled:opacity-60"
       >
         {busy ? "Sending…" : "Send message"}
       </button>
