@@ -122,7 +122,7 @@ export default async function HomePage() {
             className="animate-hero mt-5 max-w-xl text-base leading-relaxed text-[#f0f7fc] sm:text-lg"
             style={{ animationDelay: "120ms" }}
           >
-            Patient Monitor streams bedside HR, SpO₂, temperature, and blood
+            Patient Monitoring System streams bedside HR, SpO₂, temperature, and blood
             pressure — with SMS fallback into the same clinical pipeline.
           </p>
           <div className="animate-hero mt-8" style={{ animationDelay: "220ms" }}>

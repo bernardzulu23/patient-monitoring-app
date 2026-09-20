@@ -15,7 +15,7 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Patient Monitor",
+  title: "Patient Monitoring System",
   description: "Hospital patient vital-signs monitoring",
 };
 

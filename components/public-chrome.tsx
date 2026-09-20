@@ -46,7 +46,7 @@ export function PublicHeader({ signedIn }: { signedIn: boolean }) {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <Link href="/" className="group">
             <span className="font-display text-xl font-semibold tracking-tight text-[#064a7a] sm:text-2xl">
-              Patient Monitor
+              Patient Monitoring System
             </span>
             <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-[0.14em] text-[#6b7280]">
               Bedside vitals prototype
@@ -88,7 +88,7 @@ export function PublicFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="font-display text-lg font-semibold text-[#064a7a]">
-            Patient Monitor
+            Patient Monitoring System
           </p>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#4b5563]">
             Prototype bedside vitals monitoring for ward connectivity gaps ·

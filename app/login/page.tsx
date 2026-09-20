@@ -29,7 +29,7 @@ export default async function LoginPage({
         <div className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-16 lg:flex-row lg:items-center lg:gap-20">
           <div className="mb-12 max-w-xl animate-rise lg:mb-0">
             <p className="font-display text-4xl font-semibold tracking-tight text-[var(--pm-blue-deep)] sm:text-5xl">
-              Patient Monitor
+              Patient Monitoring System
             </p>
             <p className="mt-4 text-lg leading-relaxed text-[var(--pm-muted)]">
               Live vital signs across hospital wards — heart rate, SpO₂,
