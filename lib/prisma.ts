@@ -1,8 +1,10 @@
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
+import { neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 
-/** Bump when pool/URL strategy changes so Turbopack HMR drops a stale singleton. */
-const PRISMA_SINGLETON_REV = 3;
+/** Bump when pool/URL strategy changes so HMR / warm isolates drop a stale client. */
+const PRISMA_SINGLETON_REV = 4;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -31,9 +33,8 @@ function withDbParams(url: string, params: Record<string, string>) {
 }
 
 /**
- * Local/dev: direct TCP (DATABASE_URL_UNPOOLED) — Neon WebSocket adapter often
- * fails on Windows networks ("non-101 status code").
- * Production/Vercel: @prisma/adapter-neon with pooled DATABASE_URL.
+ * Local/dev: direct TCP (DATABASE_URL_UNPOOLED).
+ * Production/Vercel: @prisma/adapter-neon over WebSockets (needs `ws` on Node).
  */
 function createPrismaClient() {
   const pooled = trimUrl(process.env.DATABASE_URL);
@@ -44,17 +45,18 @@ function createPrismaClient() {
     process.env.NODE_ENV === "production";
 
   if (useNeonAdapter) {
-    if (!pooled) throw new Error("DATABASE_URL is not set");
+    if (!pooled) {
+      throw new Error("DATABASE_URL is not set");
+    }
+    // Node (Vercel serverless) has no WebSocket global — required by Neon driver.
+    neonConfig.webSocketConstructor = ws;
     const adapter = new PrismaNeon({ connectionString: pooled });
     return new PrismaClient({
       adapter,
-      log:
-        process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+      log: ["error"],
     });
   }
 
-  // Prefer direct Neon URL locally. Keep pool small — Turbopack HMR can spawn
-  // multiple clients; a large pool + cold Neon compute causes pool timeouts.
   const base = unpooled || pooled;
   if (!base) {
     throw new Error("DATABASE_URL or DATABASE_URL_UNPOOLED is not set");
@@ -72,7 +74,7 @@ function createPrismaClient() {
   });
 }
 
-function getPrisma() {
+function getPrisma(): PrismaClient {
   if (
     globalForPrisma.prisma &&
     globalForPrisma.prismaRev === PRISMA_SINGLETON_REV
@@ -86,11 +88,20 @@ function getPrisma() {
   }
 
   const client = createPrismaClient();
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-    globalForPrisma.prismaRev = PRISMA_SINGLETON_REV;
-  }
+  // Always cache — critical on Vercel warm isolates to avoid connection storms.
+  globalForPrisma.prisma = client;
+  globalForPrisma.prismaRev = PRISMA_SINGLETON_REV;
   return client;
 }
 
-export const prisma = getPrisma();
+/**
+ * Lazy proxy so importing this module never throws during build/SSR init.
+ * Failures surface on first query (public pages can catch / time out).
+ */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const client = getPrisma();
+    const value = Reflect.get(client, prop, receiver);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});

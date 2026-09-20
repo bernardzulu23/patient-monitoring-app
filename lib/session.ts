@@ -63,9 +63,13 @@ export async function decryptSession(
 ): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, getSecret(), {
-      algorithms: ["HS256"],
-    });
+    const secret = process.env.SESSION_SECRET;
+    if (!secret || secret.length < 32) return null;
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(secret),
+      { algorithms: ["HS256"] },
+    );
     return parseSessionPayload(payload);
   } catch {
     return null;

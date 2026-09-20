@@ -75,11 +75,26 @@ const FEATURES = [
 ];
 
 export default async function HomePage() {
-  const session = await getSession();
-  const [hero, gallery] = await Promise.all([
-    getHeroImageMeta(),
-    getGalleryImageMetas(4),
-  ]);
+  let session = null;
+  let hero: Awaited<ReturnType<typeof getHeroImageMeta>> = null;
+  let gallery: Awaited<ReturnType<typeof getGalleryImageMetas>> = [];
+
+  try {
+    session = await getSession();
+  } catch {
+    session = null;
+  }
+
+  try {
+    [hero, gallery] = await Promise.all([
+      getHeroImageMeta(),
+      getGalleryImageMetas(4),
+    ]);
+  } catch {
+    hero = null;
+    gallery = [];
+  }
+
   const heroSrc = hero ? publicImageUrl(hero.id) : null;
 
   return (
