@@ -547,9 +547,16 @@ export function serializePatientDetail(
     id: patient.id,
     fullName: patient.fullName,
     patientCode: patient.patientCode,
+    dateOfBirth: patient.dateOfBirth?.toISOString().slice(0, 10) ?? null,
+    nrc: patient.nrc,
+    residentialArea: patient.residentialArea,
     age: patient.age,
     sex: patient.sex,
     admissionReason: patient.admissionReason,
+    nextOfKinFullName: patient.nextOfKinFullName,
+    nextOfKinResidentialArea: patient.nextOfKinResidentialArea,
+    nextOfKinPhone: patient.nextOfKinPhone,
+    nextOfKinRelation: patient.nextOfKinRelation,
     patientStatus: patient.status,
     admittingDoctor: patient.admittingDoctor
       ? {

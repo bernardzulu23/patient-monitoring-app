@@ -4,6 +4,31 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
 
+function optionalString(value: unknown, max: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, max);
+}
+
+function parseDob(value: unknown): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (typeof value !== "string") return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function ageFromDob(dob: Date | null | undefined): number | null {
+  if (!dob) return null;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age -= 1;
+  return age >= 0 && age < 150 ? age : null;
+}
+
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session) {
@@ -24,6 +49,43 @@ export async function POST(req: Request) {
   if (typeof patientCode !== "string" || !patientCode.trim()) {
     return NextResponse.json(
       { error: "Patient code is required" },
+      { status: 400 },
+    );
+  }
+
+  const dateOfBirth = parseDob(body.dateOfBirth);
+  if (body.dateOfBirth && dateOfBirth === null) {
+    return NextResponse.json({ error: "Invalid date of birth" }, { status: 400 });
+  }
+
+  const nrc = optionalString(body.nrc, 40);
+  const residentialArea = optionalString(body.residentialArea, 180);
+  if (!nrc) {
+    return NextResponse.json({ error: "NRC is required" }, { status: 400 });
+  }
+  if (!residentialArea) {
+    return NextResponse.json(
+      { error: "Residential area is required" },
+      { status: 400 },
+    );
+  }
+
+  const nextOfKinFullName = optionalString(body.nextOfKinFullName, 120);
+  const nextOfKinResidentialArea = optionalString(
+    body.nextOfKinResidentialArea,
+    180,
+  );
+  const nextOfKinPhone = optionalString(body.nextOfKinPhone, 40);
+  const nextOfKinRelation = optionalString(body.nextOfKinRelation, 60);
+  if (!nextOfKinFullName) {
+    return NextResponse.json(
+      { error: "Next of kin full name is required" },
+      { status: 400 },
+    );
+  }
+  if (!nextOfKinPhone) {
+    return NextResponse.json(
+      { error: "Next of kin phone number is required" },
       { status: 400 },
     );
   }
@@ -59,10 +121,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const age =
-    body.age === null || body.age === undefined || body.age === ""
-      ? null
-      : Number(body.age);
   const sex =
     typeof body.sex === "string" && body.sex.trim()
       ? body.sex.trim().slice(0, 20)
@@ -93,6 +151,9 @@ export async function POST(req: Request) {
     assignedNurseId = nurse.id;
   }
 
+  const dob = dateOfBirth === undefined ? null : dateOfBirth;
+  const age = ageFromDob(dob);
+
   try {
     const patient = await prisma.$transaction(async (tx) => {
       const created = await tx.patient.create({
@@ -100,9 +161,16 @@ export async function POST(req: Request) {
           roomId,
           fullName: fullName.trim(),
           patientCode: patientCode.trim().toUpperCase(),
-          age: Number.isFinite(age as number) ? (age as number) : null,
+          dateOfBirth: dob,
+          nrc,
+          residentialArea,
+          age,
           sex,
           admissionReason,
+          nextOfKinFullName,
+          nextOfKinResidentialArea,
+          nextOfKinPhone,
+          nextOfKinRelation,
           status: "ACTIVE",
           admittingDoctorId,
           assignedNurseId,

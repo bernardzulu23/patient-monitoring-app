@@ -32,9 +32,16 @@ export async function PATCH(
     fullName?: string;
     patientCode?: string;
     roomId?: string;
+    dateOfBirth?: Date | null;
+    nrc?: string | null;
+    residentialArea?: string | null;
     age?: number | null;
     sex?: string | null;
     admissionReason?: string | null;
+    nextOfKinFullName?: string | null;
+    nextOfKinResidentialArea?: string | null;
+    nextOfKinPhone?: string | null;
+    nextOfKinRelation?: string | null;
   } = {};
 
   if (typeof body.fullName === "string") {
@@ -57,7 +64,66 @@ export async function PATCH(
     data.patientCode = body.patientCode.trim().toUpperCase();
   }
 
-  if (body.age !== undefined) {
+  if (body.dateOfBirth !== undefined) {
+    if (body.dateOfBirth === null || body.dateOfBirth === "") {
+      data.dateOfBirth = null;
+      data.age = null;
+    } else if (typeof body.dateOfBirth === "string") {
+      const d = new Date(body.dateOfBirth);
+      if (Number.isNaN(d.getTime())) {
+        return NextResponse.json(
+          { error: "Invalid date of birth" },
+          { status: 400 },
+        );
+      }
+      data.dateOfBirth = d;
+      const today = new Date();
+      let age = today.getFullYear() - d.getFullYear();
+      const m = today.getMonth() - d.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age -= 1;
+      data.age = age >= 0 && age < 150 ? age : null;
+    }
+  }
+
+  if (body.nrc !== undefined) {
+    data.nrc =
+      typeof body.nrc === "string" && body.nrc.trim()
+        ? body.nrc.trim().slice(0, 40)
+        : null;
+  }
+  if (body.residentialArea !== undefined) {
+    data.residentialArea =
+      typeof body.residentialArea === "string" && body.residentialArea.trim()
+        ? body.residentialArea.trim().slice(0, 180)
+        : null;
+  }
+  if (body.nextOfKinFullName !== undefined) {
+    data.nextOfKinFullName =
+      typeof body.nextOfKinFullName === "string" && body.nextOfKinFullName.trim()
+        ? body.nextOfKinFullName.trim().slice(0, 120)
+        : null;
+  }
+  if (body.nextOfKinResidentialArea !== undefined) {
+    data.nextOfKinResidentialArea =
+      typeof body.nextOfKinResidentialArea === "string" &&
+      body.nextOfKinResidentialArea.trim()
+        ? body.nextOfKinResidentialArea.trim().slice(0, 180)
+        : null;
+  }
+  if (body.nextOfKinPhone !== undefined) {
+    data.nextOfKinPhone =
+      typeof body.nextOfKinPhone === "string" && body.nextOfKinPhone.trim()
+        ? body.nextOfKinPhone.trim().slice(0, 40)
+        : null;
+  }
+  if (body.nextOfKinRelation !== undefined) {
+    data.nextOfKinRelation =
+      typeof body.nextOfKinRelation === "string" && body.nextOfKinRelation.trim()
+        ? body.nextOfKinRelation.trim().slice(0, 60)
+        : null;
+  }
+
+  if (body.age !== undefined && data.age === undefined) {
     if (body.age === null || body.age === "") data.age = null;
     else {
       const n = Number(body.age);

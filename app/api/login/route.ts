@@ -98,7 +98,11 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      { success: true, role: user.role },
+      {
+        success: true,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

@@ -85,7 +85,7 @@ export async function POST(req: Request) {
   const passwordHash = await hashPassword(newPassword);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash },
+    data: { passwordHash, mustChangePassword: false },
   });
 
   await createSession(user.id, user.role, user.wardId);

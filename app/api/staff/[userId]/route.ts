@@ -1,10 +1,9 @@
 import { canManageStaff } from "@/lib/authz";
 import { logAction } from "@/lib/audit";
-import { hashPassword } from "@/lib/password";
+import { generateStrongPassword, hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { isAllowedRequestOrigin } from "@/lib/sameOrigin";
 import { getSession, type SessionPayload } from "@/lib/session";
-import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -44,10 +43,13 @@ export async function PATCH(
     return jsonError(400, "Admin passwords can only be changed under Settings");
   }
 
-  const temporaryPassword = randomBytes(8).toString("hex");
+  const temporaryPassword = generateStrongPassword();
   await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash: await hashPassword(temporaryPassword) },
+    data: {
+      passwordHash: await hashPassword(temporaryPassword),
+      mustChangePassword: true,
+    },
   });
   await logAction(auth.session.userId, "RESET_STAFF_PASSWORD", "User", userId);
 

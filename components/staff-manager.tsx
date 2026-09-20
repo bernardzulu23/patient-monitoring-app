@@ -9,6 +9,9 @@ type StaffUser = {
   id: string;
   email: string;
   role: string;
+  displayName: string | null;
+  staffId: string | null;
+  nrcOrPassport: string | null;
   ward: { id: string; name: string } | null;
 };
 
@@ -24,13 +27,17 @@ export function StaffManager({
   wards: WardOption[];
 }) {
   const router = useRouter();
+  const [fullName, setFullName] = useState("");
+  const [nrcOrPassport, setNrcOrPassport] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [role, setRole] = useState<"nurse" | "doctor">("nurse");
   const [wardId, setWardId] = useState(wards[0]?.id ?? "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [tempFor, setTempFor] = useState<string | null>(null);
+  const [createdStaffId, setCreatedStaffId] = useState<string | null>(null);
   const [filter, setFilter] = useState<RoleFilter>("all");
 
   useEffect(() => {
@@ -58,7 +65,10 @@ export function StaffManager({
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        fullName,
+        nrcOrPassport,
         email,
+        phone: phone || null,
         role,
         wardId: role === "nurse" ? wardId : null,
       }),
@@ -69,10 +79,17 @@ export function StaffManager({
       setError((data as { error?: string }).error || "Could not create account");
       return;
     }
-    const created = data as { temporaryPassword: string; user: StaffUser };
+    const created = data as {
+      temporaryPassword: string;
+      user: StaffUser;
+    };
     setTempPassword(created.temporaryPassword);
     setTempFor(created.user.email);
+    setCreatedStaffId(created.user.staffId);
+    setFullName("");
+    setNrcOrPassport("");
     setEmail("");
+    setPhone("");
     router.refresh();
   }
 
@@ -89,6 +106,7 @@ export function StaffManager({
     }
     setTempPassword((data as { temporaryPassword: string }).temporaryPassword);
     setTempFor(userEmail);
+    setCreatedStaffId(null);
     router.refresh();
   }
 
@@ -108,6 +126,7 @@ export function StaffManager({
     if (tempFor === userEmail) {
       setTempPassword(null);
       setTempFor(null);
+      setCreatedStaffId(null);
     }
     router.refresh();
   }
@@ -120,8 +139,9 @@ export function StaffManager({
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-ink-muted">
           Admin-only. Create nurse and doctor logins here — there is no
-          self-registration. A temporary password is shown once; they change it
-          under Settings after signing in.
+          self-registration. A strong temporary password and staff ID are
+          generated automatically; they must change the password under Settings
+          after first sign-in.
         </p>
       </div>
 
@@ -132,23 +152,58 @@ export function StaffManager({
       </div>
 
       {tempPassword && (
-        <CopyOnceBlock
-          value={tempPassword}
-          warning={
-            tempFor
-              ? `Temporary password for ${tempFor} — copy it now. It will not be shown again.`
-              : "Share this temporary password now — it will not be shown again."
-          }
-        />
+        <div className="space-y-2">
+          {createdStaffId && (
+            <p className="rounded-lg border border-line bg-surface px-4 py-2 text-sm text-ink">
+              Staff ID:{" "}
+              <span className="font-mono font-semibold">{createdStaffId}</span>
+            </p>
+          )}
+          <CopyOnceBlock
+            value={tempPassword}
+            warning={
+              tempFor
+                ? `Temporary password for ${tempFor} — copy it now. They must change it after login.`
+                : "Share this temporary password now — it will not be shown again."
+            }
+          />
+        </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr] lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr] lg:items-start">
         <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-4 flex items-center gap-2">
             <UserPlus size={18} className="text-brand-deep" />
             <h2 className="font-semibold text-ink">Create account</h2>
           </div>
           <form onSubmit={createStaff} className="space-y-4">
+            <div>
+              <label htmlFor="staff-name" className="mb-1.5 block text-sm font-medium">
+                Full name
+              </label>
+              <input
+                id="staff-name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                maxLength={120}
+                className="w-full rounded-lg border border-line bg-white px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
+            <div>
+              <label htmlFor="staff-nrc" className="mb-1.5 block text-sm font-medium">
+                NRC / Passport
+              </label>
+              <input
+                id="staff-nrc"
+                value={nrcOrPassport}
+                onChange={(e) => setNrcOrPassport(e.target.value)}
+                required
+                maxLength={60}
+                placeholder="NRC or passport number"
+                className="w-full rounded-lg border border-line bg-white px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
             <div>
               <label htmlFor="staff-email" className="mb-1.5 block text-sm font-medium">
                 Hospital email
@@ -165,6 +220,18 @@ export function StaffManager({
               />
             </div>
             <div>
+              <label htmlFor="staff-phone" className="mb-1.5 block text-sm font-medium">
+                Phone (optional)
+              </label>
+              <input
+                id="staff-phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                maxLength={40}
+                className="w-full rounded-lg border border-line bg-white px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
+            <div>
               <label htmlFor="staff-role" className="mb-1.5 block text-sm font-medium">
                 Role
               </label>
@@ -175,7 +242,7 @@ export function StaffManager({
                 className="w-full rounded-lg border border-line bg-white px-3 py-2 outline-none focus:border-brand"
               >
                 <option value="nurse">Nurse — own ward only</option>
-                <option value="doctor">Doctor — all wards, read only</option>
+                <option value="doctor">Doctor — all wards</option>
               </select>
             </div>
             {role === "nurse" && (
@@ -204,6 +271,10 @@ export function StaffManager({
                 )}
               </div>
             )}
+            <p className="text-xs text-ink-muted">
+              Staff ID and a strong temporary password are generated
+              automatically.
+            </p>
             {error && <p className="text-sm text-alert">{error}</p>}
             <button
               type="submit"
@@ -246,6 +317,7 @@ export function StaffManager({
             <table className="w-full text-left text-sm">
               <thead className="border-b border-line bg-bg/60 text-ink-muted">
                 <tr>
+                  <th className="px-4 py-3 font-medium">Name / ID</th>
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Role</th>
                   <th className="px-4 py-3 font-medium">Ward</th>
@@ -255,7 +327,7 @@ export function StaffManager({
               <tbody>
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-ink-muted">
+                    <td colSpan={5} className="px-4 py-8 text-center text-ink-muted">
                       No accounts in this filter.
                     </td>
                   </tr>
@@ -265,6 +337,14 @@ export function StaffManager({
                     key={u.id}
                     className="border-b border-line/70 last:border-0"
                   >
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-ink">
+                        {u.displayName || "—"}
+                      </p>
+                      <p className="font-mono text-xs text-ink-muted">
+                        {u.staffId || "—"}
+                      </p>
+                    </td>
                     <td className="px-4 py-3">{u.email}</td>
                     <td className="px-4 py-3">
                       <RoleBadge role={u.role} />

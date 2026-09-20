@@ -1,16 +1,29 @@
 import { canManageStaff } from "@/lib/authz";
 import { logAction } from "@/lib/audit";
-import { hashPassword, normalizeEmail } from "@/lib/password";
+import {
+  generateStaffId,
+  generateStrongPassword,
+  hashPassword,
+  normalizeEmail,
+} from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { isAllowedRequestOrigin } from "@/lib/sameOrigin";
 import { getSession } from "@/lib/session";
-import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
 function looksLikeEmail(email: string) {
   return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function uniqueStaffId(role: "doctor" | "nurse") {
+  for (let i = 0; i < 8; i += 1) {
+    const staffId = generateStaffId(role);
+    const exists = await prisma.user.findUnique({ where: { staffId } });
+    if (!exists) return staffId;
+  }
+  return generateStaffId(role);
 }
 
 export async function GET() {
@@ -31,7 +44,9 @@ export async function GET() {
       role: u.role,
       displayName: u.displayName,
       staffId: u.staffId,
+      nrcOrPassport: u.nrcOrPassport,
       phone: u.phone,
+      mustChangePassword: u.mustChangePassword,
       ward: u.ward,
     })),
   });
@@ -66,9 +81,32 @@ export async function POST(req: Request) {
     typeof body === "object" && body && "wardId" in body
       ? (body as { wardId: unknown }).wardId
       : null;
+  const fullNameRaw =
+    typeof body === "object" && body && "fullName" in body
+      ? (body as { fullName: unknown }).fullName
+      : typeof body === "object" && body && "displayName" in body
+        ? (body as { displayName: unknown }).displayName
+        : null;
+  const nrcOrPassportRaw =
+    typeof body === "object" && body && "nrcOrPassport" in body
+      ? (body as { nrcOrPassport: unknown }).nrcOrPassport
+      : null;
+  const phoneRaw =
+    typeof body === "object" && body && "phone" in body
+      ? (body as { phone: unknown }).phone
+      : null;
 
+  if (typeof fullNameRaw !== "string" || !fullNameRaw.trim()) {
+    return NextResponse.json({ error: "Full name is required" }, { status: 400 });
+  }
   if (typeof emailRaw !== "string" || !looksLikeEmail(normalizeEmail(emailRaw))) {
     return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
+  }
+  if (typeof nrcOrPassportRaw !== "string" || !nrcOrPassportRaw.trim()) {
+    return NextResponse.json(
+      { error: "NRC or passport number is required" },
+      { status: 400 },
+    );
   }
   if (role !== "nurse" && role !== "doctor") {
     return NextResponse.json(
@@ -89,29 +127,14 @@ export async function POST(req: Request) {
     }
   }
 
-  const temporaryPassword = randomBytes(8).toString("hex");
+  const temporaryPassword = generateStrongPassword();
   const passwordHash = await hashPassword(temporaryPassword);
-
-  const displayName =
-    typeof body === "object" &&
-    body &&
-    "displayName" in body &&
-    typeof (body as { displayName: unknown }).displayName === "string"
-      ? (body as { displayName: string }).displayName.trim().slice(0, 120) || null
-      : null;
-  const staffId =
-    typeof body === "object" &&
-    body &&
-    "staffId" in body &&
-    typeof (body as { staffId: unknown }).staffId === "string"
-      ? (body as { staffId: string }).staffId.trim().slice(0, 40) || null
-      : null;
+  const staffId = await uniqueStaffId(role);
+  const displayName = fullNameRaw.trim().slice(0, 120);
+  const nrcOrPassport = nrcOrPassportRaw.trim().slice(0, 60);
   const phone =
-    typeof body === "object" &&
-    body &&
-    "phone" in body &&
-    typeof (body as { phone: unknown }).phone === "string"
-      ? (body as { phone: string }).phone.trim().slice(0, 40) || null
+    typeof phoneRaw === "string" && phoneRaw.trim()
+      ? phoneRaw.trim().slice(0, 40)
       : null;
 
   try {
@@ -123,7 +146,9 @@ export async function POST(req: Request) {
         wardId: role === "nurse" && typeof wardId === "string" ? wardId : null,
         displayName,
         staffId,
+        nrcOrPassport,
         phone,
+        mustChangePassword: true,
       },
       include: { ward: { select: { id: true, name: true } } },
     });
@@ -138,7 +163,9 @@ export async function POST(req: Request) {
           role: user.role,
           displayName: user.displayName,
           staffId: user.staffId,
+          nrcOrPassport: user.nrcOrPassport,
           phone: user.phone,
+          mustChangePassword: user.mustChangePassword,
           ward: user.ward,
         },
         temporaryPassword,

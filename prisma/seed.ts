@@ -158,6 +158,8 @@ async function main() {
       wardId: null,
       displayName: "Hospital Admin",
       staffId: "ADM-001",
+      nrcOrPassport: "ADMIN-NRC",
+      mustChangePassword: false,
     },
   });
   console.log("Created admin: admin@hospital.test");
@@ -170,7 +172,9 @@ async function main() {
       wardId: null,
       displayName: "Demo Doctor",
       staffId: "DR-001",
+      nrcOrPassport: "DOC-NRC-001",
       phone: "+260000000001",
+      mustChangePassword: false,
     },
   });
   console.log("Created doctor: doctor@hospital.test");
@@ -197,6 +201,8 @@ async function main() {
         wardId: ward.id,
         displayName: `Nurse ${wardName}`,
         staffId: `N-${wi + 1}`,
+        nrcOrPassport: `NURSE-NRC-${wi + 1}`,
+        mustChangePassword: false,
         phone: `+26090000000${wi}`,
       },
     });
@@ -220,6 +226,9 @@ async function main() {
         roomId: room.id,
         fullName,
         patientCode,
+        dateOfBirth: new Date(1980 + wi, wi % 12, 10 + wi),
+        nrc: `123456/78/${wi + 1}`,
+        residentialArea: "Lusaka",
         age: 45 + wi,
         sex: wi % 2 === 0 ? "F" : "M",
         admissionReason:
@@ -228,6 +237,10 @@ async function main() {
             : profile === "low"
               ? "Post-op observation"
               : "General monitoring",
+        nextOfKinFullName: `Kin of ${fullName}`,
+        nextOfKinResidentialArea: "Lusaka",
+        nextOfKinPhone: `+26097${String(1000000 + wi).slice(0, 7)}`,
+        nextOfKinRelation: "Spouse",
         status: "ACTIVE",
       },
     });
