@@ -17,8 +17,8 @@ export default async function AboutPage() {
         </h1>
         <div className="mt-8 space-y-6 text-base leading-relaxed text-[var(--pm-muted)]">
           <p>
-            Patient Monitor started as an ICU-focused final-year engineering
-            project: continuous bedside vital-sign monitoring for wards where
+            Patient Monitoring System started as an ICU-focused final-year engineering
+            project: conti  nuous bedside vital-sign monitoring for wards where
             manual rounds are infrequent and connectivity is unreliable.
           </p>
           <p>
