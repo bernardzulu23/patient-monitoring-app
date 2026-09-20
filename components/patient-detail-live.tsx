@@ -15,9 +15,16 @@ type PatientLivePayload = {
   id: string;
   fullName: string;
   patientCode: string;
+  dateOfBirth?: string | null;
+  nrc?: string | null;
+  residentialArea?: string | null;
   age: number | null;
   sex: string | null;
   admissionReason: string | null;
+  nextOfKinFullName?: string | null;
+  nextOfKinResidentialArea?: string | null;
+  nextOfKinPhone?: string | null;
+  nextOfKinRelation?: string | null;
   patientStatus: string;
   admittedAt: string;
   dischargedAt: string | null;
@@ -210,8 +217,14 @@ export function PatientDetailLive({
           </div>
           <p className="mt-1 text-sm text-ink-muted">
             {data.patientCode}
-            {data.age != null ? ` · ${data.age}y` : ""}
+            {data.dateOfBirth
+              ? ` · DOB ${new Date(data.dateOfBirth).toLocaleDateString()}`
+              : data.age != null
+                ? ` · ${data.age}y`
+                : ""}
             {data.sex ? ` · ${data.sex}` : ""}
+            {data.nrc ? ` · NRC ${data.nrc}` : ""}
+            {data.residentialArea ? ` · ${data.residentialArea}` : ""}
             {" · admitted "}
             {new Date(data.admittedAt).toLocaleDateString()}
             {data.admissionReason ? ` · ${data.admissionReason}` : ""}
@@ -222,6 +235,16 @@ export function PatientDetailLive({
             {data.deviceName ? ` · ${data.deviceName}` : " · no device"}
             {data.lastSeenAge ? ` · last seen ${data.lastSeenAge}` : ""}
           </p>
+          {(data.nextOfKinFullName || data.nextOfKinPhone) && (
+            <p className="mt-1 text-sm text-ink-muted">
+              Next of kin: {data.nextOfKinFullName || "—"}
+              {data.nextOfKinRelation ? ` (${data.nextOfKinRelation})` : ""}
+              {data.nextOfKinPhone ? ` · ${data.nextOfKinPhone}` : ""}
+              {data.nextOfKinResidentialArea
+                ? ` · ${data.nextOfKinResidentialArea}`
+                : ""}
+            </p>
+          )}
           <p className="mt-1 text-xs text-ink-muted">
             Score is NEWS2-inspired (not full NEWS2 — no respiratory rate or
             consciousness).

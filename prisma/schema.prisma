@@ -34,23 +34,30 @@ model Room {
 }
 
 model Patient {
-  id                String                    @id @default(cuid())
-  roomId            String
-  room              Room                      @relation(fields: [roomId], references: [id])
-  fullName          String
-  patientCode       String                    @unique
-  age               Int?
-  sex               String?
-  admissionReason   String?
-  status            String                    @default("ACTIVE") // ACTIVE | DISCHARGED
-  admittedAt        DateTime                  @default(now())
-  dischargedAt      DateTime?
-  admittingDoctorId String?
-  admittingDoctor   User?                     @relation("AdmittingDoctor", fields: [admittingDoctorId], references: [id], onDelete: SetNull)
-  assignedNurseId   String?
-  assignedNurse     User?                     @relation("AssignedNurse", fields: [assignedNurseId], references: [id], onDelete: SetNull)
-  devices           Device[]
-  thresholdOverride PatientThresholdOverride?
+  id                       String                    @id @default(cuid())
+  roomId                   String
+  room                     Room                      @relation(fields: [roomId], references: [id])
+  fullName                 String
+  patientCode              String                    @unique
+  dateOfBirth              DateTime?
+  nrc                      String?
+  residentialArea          String?
+  age                      Int?
+  sex                      String?
+  admissionReason          String?
+  nextOfKinFullName        String?
+  nextOfKinResidentialArea String?
+  nextOfKinPhone           String?
+  nextOfKinRelation        String?
+  status                   String                    @default("ACTIVE") // ACTIVE | DISCHARGED
+  admittedAt               DateTime                  @default(now())
+  dischargedAt             DateTime?
+  admittingDoctorId        String?
+  admittingDoctor          User?                     @relation("AdmittingDoctor", fields: [admittingDoctorId], references: [id], onDelete: SetNull)
+  assignedNurseId          String?
+  assignedNurse            User?                     @relation("AssignedNurse", fields: [assignedNurseId], references: [id], onDelete: SetNull)
+  devices                  Device[]
+  thresholdOverride        PatientThresholdOverride?
 }
 
 model Device {
@@ -101,19 +108,21 @@ model Alert {
 }
 
 model User {
-  id              String     @id @default(cuid())
-  email           String     @unique
-  passwordHash    String
-  role            String // "admin" | "doctor" | "nurse"
-  displayName     String?
-  staffId         String?
-  phone           String?
-  wardId          String?
-  ward            Ward?      @relation(fields: [wardId], references: [id])
-  auditLogs       AuditLog[]
-  alertAcks       Alert[]    @relation("AlertAcks")
-  admittingFor    Patient[]  @relation("AdmittingDoctor")
-  assignedNurseFor Patient[] @relation("AssignedNurse")
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  passwordHash       String
+  role               String // "admin" | "doctor" | "nurse"
+  displayName        String?
+  staffId            String?    @unique
+  nrcOrPassport      String?
+  phone              String?
+  mustChangePassword Boolean    @default(false)
+  wardId             String?
+  ward               Ward?      @relation(fields: [wardId], references: [id])
+  auditLogs          AuditLog[]
+  alertAcks          Alert[]    @relation("AlertAcks")
+  admittingFor       Patient[]  @relation("AdmittingDoctor")
+  assignedNurseFor   Patient[]  @relation("AssignedNurse")
 }
 
 // Next steps (out of scope for this project): field-level encryption of AuditLog

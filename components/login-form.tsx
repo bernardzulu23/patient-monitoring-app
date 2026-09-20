@@ -27,9 +27,16 @@ export function LoginForm() {
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        const role = (data as { role?: string }).role;
-        const dest = role === "nurse" ? "/dashboard/beds" : "/dashboard";
-        router.push(dest);
+        const mustChange = Boolean(
+          (data as { mustChangePassword?: boolean }).mustChangePassword,
+        );
+        if (mustChange) {
+          router.push("/dashboard/settings?force=1");
+        } else {
+          const role = (data as { role?: string }).role;
+          const dest = role === "nurse" ? "/dashboard/beds" : "/dashboard";
+          router.push(dest);
+        }
         router.refresh();
       } else {
         const data = await res.json().catch(() => ({}));

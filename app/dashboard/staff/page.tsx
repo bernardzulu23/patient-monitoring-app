@@ -25,6 +25,9 @@ export default async function StaffPage() {
         id: u.id,
         email: u.email,
         role: u.role,
+        displayName: u.displayName,
+        staffId: u.staffId,
+        nrcOrPassport: u.nrcOrPassport,
         ward: u.ward,
       }))}
       wards={wards}

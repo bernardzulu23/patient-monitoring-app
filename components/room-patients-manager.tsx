@@ -14,9 +14,16 @@ type PatientRow = {
   id: string;
   fullName: string;
   patientCode: string;
+  dateOfBirth: string | null;
+  nrc: string | null;
+  residentialArea: string | null;
   age: number | null;
   sex: string | null;
   admissionReason: string | null;
+  nextOfKinFullName: string | null;
+  nextOfKinResidentialArea: string | null;
+  nextOfKinPhone: string | null;
+  nextOfKinRelation: string | null;
   status: MonitorStatus;
   scoreTotal: number;
   heartRate: number | null;
@@ -55,9 +62,15 @@ export function RoomPatientsManager({
   const [editPatient, setEditPatient] = useState<PatientRow | null>(null);
   const [fullName, setFullName] = useState("");
   const [patientCode, setPatientCode] = useState(suggestedCode);
-  const [age, setAge] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [nrc, setNrc] = useState("");
+  const [residentialArea, setResidentialArea] = useState("");
   const [sex, setSex] = useState("");
   const [admissionReason, setAdmissionReason] = useState("");
+  const [nextOfKinFullName, setNextOfKinFullName] = useState("");
+  const [nextOfKinResidentialArea, setNextOfKinResidentialArea] = useState("");
+  const [nextOfKinPhone, setNextOfKinPhone] = useState("");
+  const [nextOfKinRelation, setNextOfKinRelation] = useState("");
   const [moveRoomId, setMoveRoomId] = useState(roomId);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -75,9 +88,15 @@ export function RoomPatientsManager({
         roomId,
         fullName,
         patientCode,
-        age: age === "" ? null : Number(age),
+        dateOfBirth: dateOfBirth || null,
+        nrc,
+        residentialArea,
         sex: sex || null,
         admissionReason: admissionReason || null,
+        nextOfKinFullName,
+        nextOfKinResidentialArea: nextOfKinResidentialArea || null,
+        nextOfKinPhone,
+        nextOfKinRelation: nextOfKinRelation || null,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -90,9 +109,15 @@ export function RoomPatientsManager({
     setCreatedPatientId(id);
     setOpen(false);
     setFullName("");
-    setAge("");
+    setDateOfBirth("");
+    setNrc("");
+    setResidentialArea("");
     setSex("");
     setAdmissionReason("");
+    setNextOfKinFullName("");
+    setNextOfKinResidentialArea("");
+    setNextOfKinPhone("");
+    setNextOfKinRelation("");
     router.refresh();
   }
 
@@ -108,6 +133,15 @@ export function RoomPatientsManager({
         fullName,
         patientCode,
         roomId: moveRoomId,
+        dateOfBirth: dateOfBirth || null,
+        nrc: nrc || null,
+        residentialArea: residentialArea || null,
+        sex: sex || null,
+        admissionReason: admissionReason || null,
+        nextOfKinFullName: nextOfKinFullName || null,
+        nextOfKinResidentialArea: nextOfKinResidentialArea || null,
+        nextOfKinPhone: nextOfKinPhone || null,
+        nextOfKinRelation: nextOfKinRelation || null,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -292,6 +326,17 @@ export function RoomPatientsManager({
                             setEditPatient(p);
                             setFullName(p.fullName);
                             setPatientCode(p.patientCode);
+                            setDateOfBirth(p.dateOfBirth ?? "");
+                            setNrc(p.nrc ?? "");
+                            setResidentialArea(p.residentialArea ?? "");
+                            setSex(p.sex ?? "");
+                            setAdmissionReason(p.admissionReason ?? "");
+                            setNextOfKinFullName(p.nextOfKinFullName ?? "");
+                            setNextOfKinResidentialArea(
+                              p.nextOfKinResidentialArea ?? "",
+                            );
+                            setNextOfKinPhone(p.nextOfKinPhone ?? "");
+                            setNextOfKinRelation(p.nextOfKinRelation ?? "");
                             setMoveRoomId(roomId);
                             setError("");
                           }}
@@ -318,6 +363,9 @@ export function RoomPatientsManager({
 
       <Modal title="Admit patient" open={open} onClose={() => setOpen(false)}>
         <form onSubmit={createPatient} className="space-y-4">
+          <p className="text-xs text-ink-muted">
+            Admitting to {wardName} · Bed {roomNumber}
+          </p>
           <div>
             <label className="mb-1.5 block text-sm font-medium">Full name</label>
             <input
@@ -325,6 +373,40 @@ export function RoomPatientsManager({
               onChange={(e) => setFullName(e.target.value)}
               required
               className="w-full rounded-lg border border-line bg-white px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">
+                Date of birth
+              </label>
+              <input
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                required
+                className="w-full rounded-lg border border-line bg-white px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">NRC</label>
+              <input
+                value={nrc}
+                onChange={(e) => setNrc(e.target.value)}
+                required
+                className="w-full rounded-lg border border-line bg-white px-3 py-2"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">
+              Residential area
+            </label>
+            <input
+              value={residentialArea}
+              onChange={(e) => setResidentialArea(e.target.value)}
+              required
+              className="w-full rounded-lg border border-line bg-white px-3 py-2"
             />
           </div>
           <div>
@@ -340,15 +422,6 @@ export function RoomPatientsManager({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Age</label>
-              <input
-                type="number"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                className="w-full rounded-lg border border-line bg-white px-3 py-2"
-              />
-            </div>
-            <div>
               <label className="mb-1.5 block text-sm font-medium">Sex</label>
               <input
                 value={sex}
@@ -357,17 +430,69 @@ export function RoomPatientsManager({
                 className="w-full rounded-lg border border-line bg-white px-3 py-2"
               />
             </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">
+                Reason for admission
+              </label>
+              <input
+                value={admissionReason}
+                onChange={(e) => setAdmissionReason(e.target.value)}
+                className="w-full rounded-lg border border-line bg-white px-3 py-2"
+              />
+            </div>
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              Reason for admission
-            </label>
-            <input
-              value={admissionReason}
-              onChange={(e) => setAdmissionReason(e.target.value)}
-              className="w-full rounded-lg border border-line bg-white px-3 py-2"
-            />
+
+          <div className="border-t border-line pt-3">
+            <p className="mb-3 text-sm font-semibold text-ink">Next of kin</p>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">
+                  Full name
+                </label>
+                <input
+                  value={nextOfKinFullName}
+                  onChange={(e) => setNextOfKinFullName(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-line bg-white px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">
+                  Residential area
+                </label>
+                <input
+                  value={nextOfKinResidentialArea}
+                  onChange={(e) => setNextOfKinResidentialArea(e.target.value)}
+                  className="w-full rounded-lg border border-line bg-white px-3 py-2"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">
+                    Phone number
+                  </label>
+                  <input
+                    value={nextOfKinPhone}
+                    onChange={(e) => setNextOfKinPhone(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-line bg-white px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">
+                    Relation
+                  </label>
+                  <input
+                    value={nextOfKinRelation}
+                    onChange={(e) => setNextOfKinRelation(e.target.value)}
+                    placeholder="Spouse, parent…"
+                    className="w-full rounded-lg border border-line bg-white px-3 py-2"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
+
           {error && <p className="text-sm text-alert">{error}</p>}
           <div className="flex justify-end gap-2">
             <button
@@ -403,6 +528,37 @@ export function RoomPatientsManager({
               className="w-full rounded-lg border border-line bg-white px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">
+                Date of birth
+              </label>
+              <input
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                className="w-full rounded-lg border border-line bg-white px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">NRC</label>
+              <input
+                value={nrc}
+                onChange={(e) => setNrc(e.target.value)}
+                className="w-full rounded-lg border border-line bg-white px-3 py-2"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">
+              Residential area
+            </label>
+            <input
+              value={residentialArea}
+              onChange={(e) => setResidentialArea(e.target.value)}
+              className="w-full rounded-lg border border-line bg-white px-3 py-2"
+            />
+          </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium">
               Patient code
@@ -427,6 +583,37 @@ export function RoomPatientsManager({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="border-t border-line pt-3">
+            <p className="mb-3 text-sm font-semibold text-ink">Next of kin</p>
+            <div className="space-y-3">
+              <input
+                value={nextOfKinFullName}
+                onChange={(e) => setNextOfKinFullName(e.target.value)}
+                placeholder="Full name"
+                className="w-full rounded-lg border border-line bg-white px-3 py-2"
+              />
+              <input
+                value={nextOfKinResidentialArea}
+                onChange={(e) => setNextOfKinResidentialArea(e.target.value)}
+                placeholder="Residential area"
+                className="w-full rounded-lg border border-line bg-white px-3 py-2"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  value={nextOfKinPhone}
+                  onChange={(e) => setNextOfKinPhone(e.target.value)}
+                  placeholder="Phone"
+                  className="w-full rounded-lg border border-line bg-white px-3 py-2"
+                />
+                <input
+                  value={nextOfKinRelation}
+                  onChange={(e) => setNextOfKinRelation(e.target.value)}
+                  placeholder="Relation"
+                  className="w-full rounded-lg border border-line bg-white px-3 py-2"
+                />
+              </div>
+            </div>
           </div>
           {error && <p className="text-sm text-alert">{error}</p>}
           <div className="flex justify-end gap-2">

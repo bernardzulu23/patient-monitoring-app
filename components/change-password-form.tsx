@@ -39,6 +39,7 @@ export function ChangePasswordForm() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      window.location.assign("/dashboard");
     } catch {
       setError("Could not reach the server");
     } finally {
