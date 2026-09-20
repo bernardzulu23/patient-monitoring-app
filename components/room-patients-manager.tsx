@@ -216,9 +216,15 @@ export function RoomPatientsManager({
               setOpen(true);
               setPatientCode(suggestedCode);
               setFullName("");
-              setAge("");
+              setDateOfBirth("");
+              setNrc("");
+              setResidentialArea("");
               setSex("");
               setAdmissionReason("");
+              setNextOfKinFullName("");
+              setNextOfKinResidentialArea("");
+              setNextOfKinPhone("");
+              setNextOfKinRelation("");
               setError("");
             }}
             className="rounded-lg bg-brand-deep px-3 py-2 text-sm font-semibold text-white hover:bg-brand"

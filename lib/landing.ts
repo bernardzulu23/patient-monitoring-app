@@ -1,5 +1,3 @@
-import { prisma } from "@/lib/prisma";
-
 export {
   ALLOWED_MIME,
   isLandingSlot,
@@ -18,64 +16,91 @@ function logLandingDbError(op: string, error: unknown) {
   console.warn(`[landing] ${op}: ${message}`);
 }
 
-/** Cap wait so a dead Neon pool cannot hold the public homepage for 10–30s. */
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(fallback), ms);
-    promise
-      .then((value) => {
-        clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error) => {
-        clearTimeout(timer);
-        logLandingDbError("query", error);
-        resolve(fallback);
-      });
-  });
+const LANDING_DB_MS = 4_000;
+
+async function withTimeout<T>(
+  work: () => Promise<T>,
+  ms: number,
+  fallback: T,
+  op: string,
+): Promise<T> {
+  try {
+    return await new Promise<T>((resolve) => {
+      const timer = setTimeout(() => resolve(fallback), ms);
+      work()
+        .then((value) => {
+          clearTimeout(timer);
+          resolve(value);
+        })
+        .catch((error) => {
+          clearTimeout(timer);
+          logLandingDbError(op, error);
+          resolve(fallback);
+        });
+    });
+  } catch (error) {
+    logLandingDbError(op, error);
+    return fallback;
+  }
 }
 
-const LANDING_DB_MS = 4_000;
+/** Dynamic import so a Prisma/Neon init failure cannot crash public pages at module load. */
+async function db() {
+  const { prisma } = await import("@/lib/prisma");
+  return prisma;
+}
 
 export async function listLandingImagesMeta() {
   return withTimeout(
-    prisma.landingImage.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        slot: true,
-        fileName: true,
-        mimeType: true,
-        createdAt: true,
-        uploadedById: true,
-      },
-    }),
+    async () => {
+      const prisma = await db();
+      return prisma.landingImage.findMany({
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          slot: true,
+          fileName: true,
+          mimeType: true,
+          createdAt: true,
+          uploadedById: true,
+        },
+      });
+    },
     LANDING_DB_MS,
     [],
+    "listLandingImagesMeta",
   );
 }
 
 export async function getHeroImageMeta() {
   return withTimeout(
-    prisma.landingImage.findFirst({
-      where: { slot: "HERO" },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, mimeType: true, fileName: true },
-    }),
+    async () => {
+      const prisma = await db();
+      return prisma.landingImage.findFirst({
+        where: { slot: "HERO" },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, mimeType: true, fileName: true },
+      });
+    },
     LANDING_DB_MS,
     null,
+    "getHeroImageMeta",
   );
 }
 
 export async function getGalleryImageMetas(limit = 6) {
   return withTimeout(
-    prisma.landingImage.findMany({
-      where: { slot: "GALLERY" },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: { id: true, mimeType: true, fileName: true },
-    }),
+    async () => {
+      const prisma = await db();
+      return prisma.landingImage.findMany({
+        where: { slot: "GALLERY" },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: { id: true, mimeType: true, fileName: true },
+      });
+    },
     LANDING_DB_MS,
     [],
+    "getGalleryImageMetas",
   );
 }
