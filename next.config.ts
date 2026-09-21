@@ -21,7 +21,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@neondatabase/serverless", "ws", "@prisma/adapter-neon"],
   async headers() {
     return [
       {
