@@ -1,10 +1,7 @@
-import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
-import { neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
 
 /** Bump when pool/URL strategy changes so HMR / warm isolates drop a stale client. */
-const PRISMA_SINGLETON_REV = 4;
+const PRISMA_SINGLETON_REV = 5;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -33,40 +30,52 @@ function withDbParams(url: string, params: Record<string, string>) {
 }
 
 /**
- * Local/dev: direct TCP (DATABASE_URL_UNPOOLED).
- * Production/Vercel: @prisma/adapter-neon over WebSockets (needs `ws` on Node).
+ * Prefer Neon pooled TCP on Vercel Node runtimes (API routes use nodejs).
+ * WebSocket adapter is optional via USE_NEON_ADAPTER=1 — it often fails when
+ * credentials rotate or the serverless WS path is flaky.
  */
 function createPrismaClient() {
   const pooled = trimUrl(process.env.DATABASE_URL);
   const unpooled = trimUrl(process.env.DATABASE_URL_UNPOOLED);
-  const useNeonAdapter =
-    process.env.USE_NEON_ADAPTER === "1" ||
-    process.env.VERCEL === "1" ||
-    process.env.NODE_ENV === "production";
+  const forceAdapter = process.env.USE_NEON_ADAPTER === "1";
 
-  if (useNeonAdapter) {
-    if (!pooled) {
-      throw new Error("DATABASE_URL is not set");
-    }
-    // Node (Vercel serverless) has no WebSocket global — required by Neon driver.
+  if (forceAdapter) {
+    // Lazy-load so default path does not require ws at module eval time.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PrismaNeon } = require("@prisma/adapter-neon") as typeof import("@prisma/adapter-neon");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { neonConfig } = require("@neondatabase/serverless") as typeof import("@neondatabase/serverless");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ws = require("ws") as typeof import("ws");
+    if (!pooled) throw new Error("DATABASE_URL is not set");
     neonConfig.webSocketConstructor = ws;
     const adapter = new PrismaNeon({ connectionString: pooled });
-    return new PrismaClient({
-      adapter,
-      log: ["error"],
-    });
+    return new PrismaClient({ adapter, log: ["error"] });
   }
 
-  const base = unpooled || pooled;
+  const onVercel = process.env.VERCEL === "1";
+  const base = onVercel ? pooled || unpooled : unpooled || pooled;
   if (!base) {
     throw new Error("DATABASE_URL or DATABASE_URL_UNPOOLED is not set");
   }
 
-  const url = withDbParams(base, {
-    connect_timeout: "15",
-    pool_timeout: "20",
-    connection_limit: "3",
-  });
+  const url = withDbParams(
+    base,
+    onVercel
+      ? {
+          // Neon pooler + Prisma: required for serverless TCP
+          pgbouncer: "true",
+          connect_timeout: "15",
+          pool_timeout: "20",
+          connection_limit: "1",
+          sslmode: "require",
+        }
+      : {
+          connect_timeout: "15",
+          pool_timeout: "20",
+          connection_limit: "3",
+        },
+  );
 
   return new PrismaClient({
     datasources: { db: { url } },
@@ -88,7 +97,6 @@ function getPrisma(): PrismaClient {
   }
 
   const client = createPrismaClient();
-  // Always cache — critical on Vercel warm isolates to avoid connection storms.
   globalForPrisma.prisma = client;
   globalForPrisma.prismaRev = PRISMA_SINGLETON_REV;
   return client;

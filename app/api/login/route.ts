@@ -90,6 +90,14 @@ export async function POST(req: Request) {
     }
 
     clearRateLimit(emailKey);
+
+    if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
+      console.error("[api/login] SESSION_SECRET is missing or too short");
+      return jsonError(503, {
+        error: "Sign-in is temporarily unavailable. Try again shortly.",
+      });
+    }
+
     await createSession(user.id, user.role, user.wardId);
     try {
       await logAction(user.id, "LOGGED_IN", "User", user.id);
