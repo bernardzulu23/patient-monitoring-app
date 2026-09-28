@@ -1,0 +1,61 @@
+/*
+ * Minimal ESP32 + SIM800L SMS fallback sketch (Arduino).
+ * Primary path should be WiFi → POST /api/readings with x-api-key.
+ * When WiFi fails, send a short SMS to the hospital SIM800 number.
+ *
+ * Flash libraries: TinyGsm (SIM800), WiFi (ESP32).
+ * Replace placeholders before flashing.
+ */
+
+#if 0
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <TinyGsmClient.h>
+
+#define SerialAT Serial2
+TinyGsm modem(SerialAT);
+
+const char* WIFI_SSID = "HOSPITAL_WARD";
+const char* WIFI_PASS = "********";
+const char* INGEST_HTTPS = "http://192.168.1.10:3000/api/readings";
+const char* DEVICE_API_KEY = "dev_xxxxxxxx";
+const char* HOSPITAL_SMS_NUMBER = "+2609xxxxxxx"; // SIM in hospital modem
+
+void sendHttpsVitals(int hr, int spo2, float tempC, int sys, int dia, int rr) {
+  HTTPClient http;
+  http.begin(INGEST_HTTPS);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-api-key", DEVICE_API_KEY);
+  String body = String("{\"heartRate\":") + hr +
+                ",\"spo2\":" + spo2 +
+                ",\"tempC\":" + String(tempC, 1) +
+                ",\"systolic\":" + sys +
+                ",\"diastolic\":" + dia +
+                ",\"respiratoryRate\":" + rr + "}";
+  http.POST(body);
+  http.end();
+}
+
+void sendSmsVitals(int hr, int spo2, float tempC, int sys, int dia, int rr) {
+  String text = String("KEY=") + DEVICE_API_KEY +
+                " HR=" + hr +
+                " SPO2=" + spo2 +
+                " TEMP=" + String(tempC, 1) +
+                " SYS=" + sys +
+                " DIA=" + dia +
+                " RR=" + rr;
+  modem.sendSMS(HOSPITAL_SMS_NUMBER, text);
+}
+
+void loop() {
+  int hr = 72, spo2 = 98, sys = 120, dia = 80, rr = 16;
+  float tempC = 36.8;
+
+  if (WiFi.status() == WL_CONNECTED) {
+    sendHttpsVitals(hr, spo2, tempC, sys, dia, rr);
+  } else {
+    sendSmsVitals(hr, spo2, tempC, sys, dia, rr);
+  }
+  delay(60000);
+}
+#endif

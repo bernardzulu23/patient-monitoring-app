@@ -9,6 +9,7 @@ import { Modal } from "@/components/modal";
 import { ScoreBadge } from "@/components/score-badge";
 import { VitalChip } from "@/components/vital-chip";
 import type { MonitorStatus } from "@/lib/ingestReading";
+import { offlineAwareFetch } from "@/lib/offline-outbox";
 
 type PatientRow = {
   id: string;
@@ -81,18 +82,18 @@ export function RoomPatientsManager({
     e.preventDefault();
     setBusy(true);
     setError("");
-    const res = await fetch("/api/patients", {
+    const res = await offlineAwareFetch("/api/patients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         roomId,
         fullName,
         patientCode,
-        dateOfBirth: dateOfBirth || null,
+        dateOfBirth,
         nrc,
         residentialArea,
         sex: sex || null,
-        admissionReason: admissionReason || null,
+        admissionReason,
         nextOfKinFullName,
         nextOfKinResidentialArea: nextOfKinResidentialArea || null,
         nextOfKinPhone,
@@ -101,6 +102,12 @@ export function RoomPatientsManager({
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
+    if (res.status === 202 && (data as { queued?: boolean }).queued) {
+      setOpen(false);
+      setError("");
+      router.refresh();
+      return;
+    }
     if (!res.ok) {
       setError((data as { error?: string }).error || "Create failed");
       return;
@@ -126,7 +133,7 @@ export function RoomPatientsManager({
     if (!editPatient) return;
     setBusy(true);
     setError("");
-    const res = await fetch(`/api/patients/${editPatient.id}`, {
+    const res = await offlineAwareFetch(`/api/patients/${editPatient.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -146,6 +153,11 @@ export function RoomPatientsManager({
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
+    if (res.status === 202 && (data as { queued?: boolean }).queued) {
+      setEditPatient(null);
+      router.refresh();
+      return;
+    }
     if (!res.ok) {
       setError((data as { error?: string }).error || "Update failed");
       return;
@@ -162,10 +174,14 @@ export function RoomPatientsManager({
     ) {
       return;
     }
-    const res = await fetch(`/api/patients/${patient.id}/discharge`, {
+    const res = await offlineAwareFetch(`/api/patients/${patient.id}/discharge`, {
       method: "POST",
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 202 && (data as { queued?: boolean }).queued) {
+      router.refresh();
+      return;
+    }
     if (!res.ok) {
       alert((data as { error?: string }).error || "Discharge failed");
       return;
@@ -406,7 +422,7 @@ export function RoomPatientsManager({
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium">
-              Residential area
+              Residential address
             </label>
             <input
               value={residentialArea}
@@ -443,6 +459,7 @@ export function RoomPatientsManager({
               <input
                 value={admissionReason}
                 onChange={(e) => setAdmissionReason(e.target.value)}
+                required
                 className="w-full rounded-lg border border-line bg-white px-3 py-2"
               />
             </div>
@@ -464,7 +481,7 @@ export function RoomPatientsManager({
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium">
-                  Residential area
+                  Residential address
                 </label>
                 <input
                   value={nextOfKinResidentialArea}
@@ -557,7 +574,7 @@ export function RoomPatientsManager({
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium">
-              Residential area
+              Residential address
             </label>
             <input
               value={residentialArea}
@@ -602,7 +619,7 @@ export function RoomPatientsManager({
               <input
                 value={nextOfKinResidentialArea}
                 onChange={(e) => setNextOfKinResidentialArea(e.target.value)}
-                placeholder="Residential area"
+                placeholder="Residential address"
                 className="w-full rounded-lg border border-line bg-white px-3 py-2"
               />
               <div className="grid grid-cols-2 gap-3">

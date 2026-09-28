@@ -5,12 +5,12 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 /**
- * SMS fallback ingest stub for SIM800L / gateway webhooks.
+ * SMS fallback ingest for SIM800 gateway on the hospital PC.
  * Expected body (JSON or form):
  *   text: "KEY=dev_xxx HR=72 SPO2=98 TEMP=36.8 SYS=120 DIA=80 RR=16"
  * or discrete fields: apiKey/key, heartRate/hr, spo2, tempC/temp, systolic/sys, diastolic/dia, respiratoryRate/rr
  *
- * No live SMS provider is wired — this endpoint is ready for a gateway forwarder.
+ * Wire the local modem with `gateway/` (serialport → this endpoint).
  */
 function parseSmsText(text: string) {
   const get = (k: string) => {
@@ -31,6 +31,28 @@ function parseSmsText(text: string) {
     diastolic: num(get("DIA")),
     respiratoryRate: num(get("RR")),
   };
+}
+
+const PHYSIO_RANGES: Record<string, { min: number; max: number }> = {
+  heartRate: { min: 20, max: 300 },
+  spo2: { min: 0, max: 100 },
+  tempC: { min: 25, max: 45 },
+  systolic: { min: 40, max: 300 },
+  diastolic: { min: 20, max: 200 },
+  respiratoryRate: { min: 4, max: 60 },
+};
+
+function findOutOfRangeField(
+  vitals: Record<string, number | undefined>,
+): { field: string; value: number } | null {
+  for (const [field, range] of Object.entries(PHYSIO_RANGES)) {
+    const value = vitals[field];
+    if (value === undefined) continue;
+    if (value < range.min || value > range.max) {
+      return { field, value };
+    }
+  }
+  return null;
 }
 
 export async function POST(req: Request) {
@@ -114,6 +136,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No vitals in SMS payload" }, { status: 400 });
     }
 
+    const outOfRange = findOutOfRangeField({
+      heartRate,
+      spo2,
+      tempC,
+      systolic,
+      diastolic,
+      respiratoryRate,
+    });
+    if (outOfRange) {
+      return NextResponse.json(
+        {
+          error: "Reading out of physiological range",
+          field: outOfRange.field,
+          value: outOfRange.value,
+        },
+        { status: 400 },
+      );
+    }
+
     const { reading, score } = await ingestReadingForDevice(device.id, {
       ...(heartRate !== undefined ? { heartRate } : {}),
       ...(spo2 !== undefined ? { spo2 } : {}),
@@ -125,7 +166,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      via: "sms-stub",
+      via: "sms",
       readingId: reading.id,
       score,
     });

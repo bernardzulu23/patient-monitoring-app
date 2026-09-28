@@ -137,7 +137,7 @@ async function seedReadingHistory(
 }
 
 async function main() {
-  console.log("Seeding via direct Neon connection…");
+  console.log("Seeding database…");
 
   await prisma.auditLog.deleteMany();
   await prisma.alert.deleteMany();

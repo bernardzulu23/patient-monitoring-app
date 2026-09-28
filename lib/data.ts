@@ -1,6 +1,10 @@
 import { getSession, type SessionPayload } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canAccessWard, canViewAllWards } from "@/lib/authz";
+import {
+  canAccessWard,
+  canManagePatientsInWard,
+  canViewAllWards,
+} from "@/lib/authz";
 import {
   formatRelativeAge,
   ONLINE_MS,
@@ -642,6 +646,39 @@ export async function suggestNextPatientCode() {
     if (m) max = Math.max(max, Number(m[1]));
   }
   return `P-${String(max + 1).padStart(4, "0")}`;
+}
+
+export type AdmitBedOption = {
+  roomId: string;
+  roomNumber: string;
+  wardId: string;
+  wardName: string;
+  bedStatus: string;
+};
+
+/** Beds a nurse/admin can admit into (empty, not reserved/cleaning). */
+export async function getAdmitBeds(
+  session: SessionPayload,
+): Promise<AdmitBedOption[]> {
+  const rooms = await prisma.room.findMany({
+    where: {
+      ward: wardsWhereForSession(session),
+      status: { notIn: ["RESERVED", "CLEANING"] },
+      patients: { none: { status: "ACTIVE" } },
+    },
+    orderBy: [{ ward: { name: "asc" } }, { number: "asc" }],
+    include: { ward: { select: { id: true, name: true } } },
+  });
+
+  return rooms
+    .filter((room) => canManagePatientsInWard(session, room.wardId))
+    .map((room) => ({
+      roomId: room.id,
+      roomNumber: room.number,
+      wardId: room.ward.id,
+      wardName: room.ward.name,
+      bedStatus: room.status,
+    }));
 }
 
 export { ONLINE_MS };

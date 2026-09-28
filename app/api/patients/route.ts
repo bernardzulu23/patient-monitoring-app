@@ -54,8 +54,11 @@ export async function POST(req: Request) {
   }
 
   const dateOfBirth = parseDob(body.dateOfBirth);
-  if (body.dateOfBirth && dateOfBirth === null) {
-    return NextResponse.json({ error: "Invalid date of birth" }, { status: 400 });
+  if (!body.dateOfBirth || dateOfBirth === null || dateOfBirth === undefined) {
+    return NextResponse.json(
+      { error: "Date of birth is required" },
+      { status: 400 },
+    );
   }
 
   const nrc = optionalString(body.nrc, 40);
@@ -65,7 +68,15 @@ export async function POST(req: Request) {
   }
   if (!residentialArea) {
     return NextResponse.json(
-      { error: "Residential area is required" },
+      { error: "Residential address is required" },
+      { status: 400 },
+    );
+  }
+
+  const admissionReason = optionalString(body.admissionReason, 500);
+  if (!admissionReason) {
+    return NextResponse.json(
+      { error: "Reason for admission is required" },
       { status: 400 },
     );
   }
@@ -125,10 +136,6 @@ export async function POST(req: Request) {
     typeof body.sex === "string" && body.sex.trim()
       ? body.sex.trim().slice(0, 20)
       : null;
-  const admissionReason =
-    typeof body.admissionReason === "string" && body.admissionReason.trim()
-      ? body.admissionReason.trim().slice(0, 500)
-      : null;
 
   let admittingDoctorId: string | null = null;
   let assignedNurseId: string | null = null;
@@ -151,7 +158,7 @@ export async function POST(req: Request) {
     assignedNurseId = nurse.id;
   }
 
-  const dob = dateOfBirth === undefined ? null : dateOfBirth;
+  const dob = dateOfBirth;
   const age = ageFromDob(dob);
 
   try {

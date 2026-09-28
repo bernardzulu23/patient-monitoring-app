@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
-import { isAdmin } from "@/lib/authz";
+import { canAdmitPatients, isAdmin } from "@/lib/authz";
 import type { SessionPayload } from "@/lib/session";
 
 const linkClass = "text-ink-muted hover:text-brand";
@@ -34,6 +34,11 @@ export function DashboardHeader({
             <Link href="/dashboard/beds" className={linkClass}>
               Beds
             </Link>
+            {canAdmitPatients(session) && (
+              <Link href="/dashboard/admit" className={linkClass}>
+                Register patient
+              </Link>
+            )}
             <Link href="/dashboard/alerts" className={linkClass}>
               Alerts
             </Link>

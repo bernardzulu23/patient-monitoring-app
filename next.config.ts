@@ -1,4 +1,23 @@
+import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
+import { spawnSync } from "node:child_process";
+
+const revision =
+  spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).stdout?.trim() ||
+  String(Date.now());
+
+const withSerwist = withSerwistInit({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  disable: process.env.NODE_ENV === "development",
+  cacheOnNavigation: true,
+  reloadOnOnline: false,
+  additionalPrecacheEntries: [
+    { url: "/offline", revision },
+    { url: "/dashboard", revision },
+    { url: "/login", revision },
+  ],
+});
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -37,4 +56,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

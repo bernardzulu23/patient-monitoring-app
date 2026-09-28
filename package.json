@@ -3,27 +3,31 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && node scripts/migrate-safe.js && next build",
+    "dev": "next dev --webpack",
+    "build": "prisma generate && node scripts/migrate-safe.js && next build --webpack",
     "postinstall": "prisma generate",
     "start": "next start",
+    "start:lan": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "gateway": "npm --prefix gateway start"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-neon": "^6.19.3",
     "@prisma/client": "^6.19.3",
+    "@serwist/next": "^9.5.12",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.3",
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "serwist": "^9.5.12",
     "ws": "^8.21.3"
   },
   "devDependencies": {

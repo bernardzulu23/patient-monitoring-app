@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Newsreader, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -16,7 +16,28 @@ const newsreader = Newsreader({
 
 export const metadata: Metadata = {
   title: "Patient Monitoring System",
-  description: "Hospital patient vital-signs monitoring",
+  description:
+    "Offline-first hospital patient vital-signs monitoring for rural wards",
+  applicationName: "Patient Monitor",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Patient Monitor",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f4c5c",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

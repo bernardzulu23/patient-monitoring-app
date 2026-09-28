@@ -35,3 +35,10 @@ export function canManagePatientsInWard(
   if (session.role === "nurse" && session.wardId === wardId) return true;
   return false;
 }
+
+/** Nurse (with a ward) or admin can open the Register patient flow. */
+export function canAdmitPatients(session: SessionPayload) {
+  if (session.role === "admin") return true;
+  if (session.role === "nurse" && session.wardId) return true;
+  return false;
+}

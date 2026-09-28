@@ -1,0 +1,36 @@
+# Local hospital Postgres (rural on-prem). App runs on the host or in the optional `app` service.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: patient-monitor-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pm
+      POSTGRES_PASSWORD: pm_local_change_me
+      POSTGRES_DB: patient_monitor
+    ports:
+      - "5432:5432"
+    volumes:
+      - pm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pm -d patient_monitor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Optional: run the Next.js app inside Docker after `npm run build` on the host
+  # or build with the Dockerfile. Prefer host `npm run start:lan` on Windows hospital PCs.
+  # app:
+  #   build: .
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   ports:
+  #     - "3000:3000"
+  #   env_file: .env
+  #   environment:
+  #     DATABASE_URL: postgresql://pm:pm_local_change_me@db:5432/patient_monitor
+  #     DATABASE_URL_UNPOOLED: postgresql://pm:pm_local_change_me@db:5432/patient_monitor
+
+volumes:
+  pm_pgdata:

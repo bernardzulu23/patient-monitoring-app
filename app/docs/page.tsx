@@ -26,7 +26,15 @@ export default async function DocsPage() {
           </h2>
           <ul className="list-disc space-y-2 pl-5 text-sm text-[var(--pm-muted)]">
             <li>
-              Next.js App Router + Prisma/PostgreSQL (Neon) + Vercel deployment
+              Next.js App Router + Prisma/PostgreSQL —{" "}
+              <strong className="font-medium text-[var(--pm-ink)]">
+                on-prem LAN
+              </strong>{" "}
+              for rural hospitals (Docker Compose Postgres); Neon/Vercel for demos
+            </li>
+            <li>
+              Offline-first PWA (Serwist): installable on staff phones/tablets,
+              caches dashboard GETs, queues admit/edit/discharge while offline
             </li>
             <li>
               Device HTTPS ingest at{" "}
@@ -34,9 +42,10 @@ export default async function DocsPage() {
               with per-device API key (identity never trusted from payload bed/patient IDs)
             </li>
             <li>
-              SMS fallback stub at{" "}
+              SMS fallback: SIM800 modem on the hospital PC →{" "}
+              <code className="text-[var(--pm-ink)]">gateway/</code> →{" "}
               <code className="text-[var(--pm-ink)]">POST /api/ingest/sms</code>{" "}
-              into the same ingest pipeline (no live SMS gateway wired yet)
+              (same ingest pipeline as HTTPS)
             </li>
             <li>Dashboard updates via polling (3–5s), not WebSockets</li>
             <li>
@@ -52,9 +61,29 @@ export default async function DocsPage() {
           </h2>
           <ul className="list-disc space-y-2 pl-5 text-sm text-[var(--pm-muted)]">
             <li>Admin — full CRUD, thresholds, staff, devices, SIEM</li>
-            <li>Doctor — view all wards; no staff/threshold CRUD</li>
-            <li>Nurse — own ward read/write; lands on Beds after login</li>
+            <li>Doctor — view all wards; no patient admit/edit</li>
+            <li>
+              Nurse — own ward read/write;{" "}
+              <strong className="font-medium text-[var(--pm-ink)]">
+                Register patient
+              </strong>{" "}
+              in the nav (or Admit from a bed)
+            </li>
           </ul>
+        </section>
+
+        <section className="mt-10 space-y-3">
+          <h2 className="font-display text-2xl font-semibold text-[var(--pm-ink)]">
+            On-prem deploy
+          </h2>
+          <p className="text-sm leading-relaxed text-[var(--pm-muted)]">
+            See <code className="text-[var(--pm-ink)]">DEPLOY.md</code>: Docker
+            Postgres, <code className="text-[var(--pm-ink)]">npm run start:lan</code>
+            , PWA install on ward Wi‑Fi, and SIM800 gateway env (
+            <code className="text-[var(--pm-ink)]">SIM800_PORT</code>). For
+            installable PWA off localhost, use HTTPS (e.g. mkcert) on the hospital
+            PC IP.
+          </p>
         </section>
 
         <section className="mt-10 space-y-3">
@@ -64,9 +93,9 @@ export default async function DocsPage() {
           <p className="text-sm leading-relaxed text-[var(--pm-muted)]">
             Patient vitals are sensitive personal data. This prototype aims at
             least-privilege RBAC, append-only audit/SIEM logging, HTTPS in
-            transit on Vercel, and Neon-managed disk encryption at rest. It does
-            not claim full regulatory certification or field-level encryption of
-            every column.
+            transit when available, and disk encryption at rest on the hospital
+            server / Neon. It does not claim full regulatory certification or
+            field-level encryption of every column.
           </p>
         </section>
 

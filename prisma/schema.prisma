@@ -4,8 +4,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  // DATABASE_URL = Neon pooled (-pooler) — used by the app on Vercel
-  // DATABASE_URL_UNPOOLED = Neon direct — used by Prisma Migrate
+  // Cloud (Neon): DATABASE_URL = pooled (-pooler); DATABASE_URL_UNPOOLED = direct for migrate
+  // On-prem: both URLs may point at the same local Postgres (see docker-compose.yml)
   url       = env("DATABASE_URL")
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
