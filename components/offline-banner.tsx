@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { flushOutbox, listMutations } from "@/lib/offline-outbox";
+import { flushOutbox, listMutations, setOutboxOwner } from "@/lib/offline-outbox";
 
-export function OfflineBanner() {
+export function OfflineBanner({ userId }: { userId: string }) {
+  setOutboxOwner(userId);
   const [offline, setOffline] = useState(false);
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);

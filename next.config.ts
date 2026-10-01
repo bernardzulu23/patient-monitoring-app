@@ -12,11 +12,8 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV === "development",
   cacheOnNavigation: true,
   reloadOnOnline: false,
-  additionalPrecacheEntries: [
-    { url: "/offline", revision },
-    { url: "/dashboard", revision },
-    { url: "/login", revision },
-  ],
+  // Never precache authenticated pages: precache survives logout and would expose PHI offline.
+  additionalPrecacheEntries: [{ url: "/offline", revision }],
 });
 
 const securityHeaders = [
@@ -40,6 +37,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   async headers() {
     return [
       {

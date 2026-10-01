@@ -14,7 +14,8 @@ export function ForcePasswordGate({ forced }: { forced: boolean }) {
     router.replace("/dashboard/settings?force=1");
   }, [forced, pathname, router]);
 
-  if (!forced) return null;
+  // Settings already explains the requirement; a fixed banner there covers the submit button.
+  if (!forced || pathname.startsWith("/dashboard/settings")) return null;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-warn bg-warn-soft px-4 py-3 text-center text-sm text-warn">

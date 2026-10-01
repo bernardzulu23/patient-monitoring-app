@@ -26,14 +26,27 @@ npm install
 npm run db:migrate:deploy
 npm run db:seed
 npm run build
-npm run start:lan
+npm run start:behind-proxy   # binds 127.0.0.1:3000 only
 ```
 
 > Note: production build uses webpack (`next build --webpack`) so Serwist can inject the service worker. Dev also uses `--webpack` for the same reason.
 
-Staff open `http://<hospital-pc-ip>:3000` on the ward Wi‑Fi.
+### 3b. HTTPS front end (required)
 
-Demo logins (password `changeme123`):
+Session cookies are `Secure` in production, so sign-in only works over HTTPS. Run [Caddy](https://caddyserver.com/download) on the same PC:
+
+```bash
+# .env: TRUST_PROXY=1
+SITE_ADDRESS=192.168.1.20 caddy run --config deploy/Caddyfile --adapter caddyfile
+```
+
+Caddy redirects HTTP → HTTPS and issues a certificate from its local CA (`tls internal`). Install Caddy's root certificate on each ward phone/tablet once (`caddy trust` on the PC; copy `root.crt` from Caddy's data dir to devices).
+
+Staff open `https://<hospital-pc-ip>` on the ward Wi‑Fi. Do not use `npm run start:lan` in production — it exposes plain HTTP on `0.0.0.0:3000` and bypasses TLS.
+
+Allow only TCP 80/443 inbound on the hospital PC firewall; keep 3000 and 5432 closed to the LAN.
+
+Demo logins — the seed prints a random one-time password (or uses `SEED_PASSWORD`); every account must change it at first sign-in. The seed refuses to run when `NODE_ENV=production`.
 
 - `admin@hospital.test`
 - `doctor@hospital.test`
@@ -54,7 +67,7 @@ See [gateway/README.md](gateway/README.md).
 
 On a staff phone/tablet on hospital Wi‑Fi:
 
-1. Open the LAN URL (HTTPS recommended for install — use [mkcert](https://github.com/FiloSottile/mkcert) for a local cert, or Chrome “Install app” on `localhost`).
+1. Open the HTTPS LAN URL from step 3b (service workers and PWA install require HTTPS).
 2. Browser menu → **Install app** / **Add to Home Screen**.
 3. Dashboard shell and recent API responses stay available if Wi‑Fi drops briefly; admits queue offline and sync when back on LAN.
 

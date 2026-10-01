@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/authz";
 import { logAction } from "@/lib/audit";
+import { safeFileName } from "@/lib/csv";
+import { ALLOWED_MIME } from "@/lib/landing-shared";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
@@ -13,7 +15,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const image = await prisma.landingImage.findUnique({ where: { id } });
-  if (!image) {
+  if (!image || !ALLOWED_MIME.has(image.mimeType)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -22,7 +24,9 @@ export async function GET(
     headers: {
       "Content-Type": image.mimeType,
       "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
-      "Content-Disposition": `inline; filename="${image.fileName.replace(/"/g, "")}"`,
+      "Content-Disposition": `inline; filename="${safeFileName(image.fileName, "image")}"`,
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

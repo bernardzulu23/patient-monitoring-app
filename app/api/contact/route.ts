@@ -1,9 +1,32 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { clientIdentity, consumeRateLimit } from "@/lib/rateLimit";
+import { isAllowedRequestOrigin } from "@/lib/sameOrigin";
 
 export const runtime = "nodejs";
 
+const CONTACT_WINDOW_MS = 60 * 60 * 1000;
+const MAX_PER_IP = 5;
+const MAX_SHARED = 30;
+
 export async function POST(req: Request) {
+  if (!isAllowedRequestOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { ip, trusted } = clientIdentity(req);
+  const limit = consumeRateLimit(
+    `contact:ip:${ip}`,
+    trusted ? MAX_PER_IP : MAX_SHARED,
+    CONTACT_WINDOW_MS,
+  );
+  if (limit.limited) {
+    return NextResponse.json(
+      { error: "Too many messages. Try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } },
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -11,18 +34,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const name =
-    typeof body === "object" && body && "name" in body
-      ? String((body as { name: unknown }).name ?? "").trim()
+  const field = (key: string) =>
+    typeof body === "object" &&
+    body &&
+    key in body &&
+    typeof (body as Record<string, unknown>)[key] === "string"
+      ? ((body as Record<string, string>)[key] ?? "").trim()
       : "";
-  const institution =
-    typeof body === "object" && body && "institution" in body
-      ? String((body as { institution: unknown }).institution ?? "").trim()
-      : "";
-  const message =
-    typeof body === "object" && body && "message" in body
-      ? String((body as { message: unknown }).message ?? "").trim()
-      : "";
+
+  const name = field("name");
+  const institution = field("institution");
+  const message = field("message");
 
   if (!name || name.length > 120) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });

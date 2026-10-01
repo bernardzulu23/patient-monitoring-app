@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { signOutAndClear } from "@/lib/offline-session";
 
 const IDLE_MS = 20 * 60 * 1000; // 20 minutes
 
@@ -15,7 +16,7 @@ export function IdleLogout() {
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(async () => {
         try {
-          await fetch("/api/logout", { method: "POST" });
+          await signOutAndClear();
         } catch {
           // ignore
         }

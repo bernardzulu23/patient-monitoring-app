@@ -1,0 +1,35 @@
+# HTTPS front end for the on-prem hospital PC.
+#
+# Caddy terminates TLS on :443, redirects :80 -> https, and proxies to the
+# Next.js app bound to loopback (`npm run start:behind-proxy`). The app must
+# NOT listen on 0.0.0.0 when this proxy is in use, otherwise ward devices can
+# bypass TLS by hitting :3000 directly.
+#
+# Set SITE_ADDRESS to the hostname or LAN IP staff will type, e.g.
+#   SITE_ADDRESS=pm.hospital.lan   or   SITE_ADDRESS=192.168.1.20
+# `tls internal` issues a certificate from Caddy's local CA. Install that root
+# (caddy trust, or copy `pki/authorities/local/root.crt` from Caddy's data dir)
+# on each ward phone/tablet once so the PWA can install without warnings.
+#
+# Run: caddy run --config deploy/Caddyfile --adapter caddyfile
+# App env: TRUST_PROXY=1 so rate limits key on the real client IP.
+
+{
+	# Ward LAN has no public DNS; never attempt ACME.
+	local_certs
+}
+
+{$SITE_ADDRESS:localhost} {
+	tls internal
+
+	encode zstd gzip
+
+	# HSTS and the other security headers come from next.config.ts / proxy.ts.
+	header -Server
+
+	reverse_proxy {$UPSTREAM:127.0.0.1:3000} {
+		# Overwrite (not append) so clients cannot spoof their address.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Real-IP {remote_host}
+	}
+}

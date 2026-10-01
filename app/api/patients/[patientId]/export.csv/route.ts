@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { canAccessWard, isAdmin, isDoctor } from "@/lib/authz";
 import { getPatientDetail } from "@/lib/data";
 import { logAction } from "@/lib/audit";
+import { csvCell as csv, safeFileName } from "@/lib/csv";
 import { getSession } from "@/lib/session";
 
 export async function GET(
@@ -81,13 +82,8 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${patient.patientCode}-export.csv"`,
+      "Content-Disposition": `attachment; filename="${safeFileName(`${patient.patientCode}-export.csv`, "export.csv")}"`,
       "Cache-Control": "no-store",
     },
   });
-}
-
-function csv(v: string) {
-  if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
-  return v;
 }

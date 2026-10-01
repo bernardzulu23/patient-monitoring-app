@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { hashPassword } from "../lib/password";
+import { generateStrongPassword, hashPassword } from "../lib/password";
 import { randomUUID } from "crypto";
 import {
   aggregateScore,
@@ -31,7 +31,15 @@ const prisma = new PrismaClient({
 
 const WARD_NAMES = ["ICU-A", "ICU-B", "Pediatric Ward", "General Ward"];
 
-const DEFAULT_PASSWORD = "changeme123";
+// The seed wipes every table first — never let it run against a live hospital by accident.
+if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "1") {
+  throw new Error(
+    "Refusing to seed in production (it deletes all data). Set ALLOW_DEMO_SEED=1 to override.",
+  );
+}
+
+// No shared default password: use SEED_PASSWORD or a random one printed once below.
+const DEFAULT_PASSWORD = process.env.SEED_PASSWORD?.trim() || generateStrongPassword();
 
 type Vitals = {
   heartRate: number;
@@ -159,7 +167,7 @@ async function main() {
       displayName: "Hospital Admin",
       staffId: "ADM-001",
       nrcOrPassport: "ADMIN-NRC",
-      mustChangePassword: false,
+      mustChangePassword: true,
     },
   });
   console.log("Created admin: admin@hospital.test");
@@ -174,7 +182,7 @@ async function main() {
       staffId: "DR-001",
       nrcOrPassport: "DOC-NRC-001",
       phone: "+260000000001",
-      mustChangePassword: false,
+      mustChangePassword: true,
     },
   });
   console.log("Created doctor: doctor@hospital.test");
@@ -202,7 +210,7 @@ async function main() {
         displayName: `Nurse ${wardName}`,
         staffId: `N-${wi + 1}`,
         nrcOrPassport: `NURSE-NRC-${wi + 1}`,
-        mustChangePassword: false,
+        mustChangePassword: true,
         phone: `+26090000000${wi}`,
       },
     });
@@ -268,7 +276,9 @@ async function main() {
     data: { lastSeen: new Date() },
   });
 
-  console.log(`\nAll accounts use password: ${DEFAULT_PASSWORD}`);
+  console.log(
+    `\nAll demo accounts use this one-time password (change required at first sign-in): ${DEFAULT_PASSWORD}`,
+  );
 }
 
 main()

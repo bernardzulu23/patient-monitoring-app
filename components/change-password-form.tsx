@@ -69,7 +69,7 @@ export function ChangePasswordForm() {
         show={showNew}
         onToggle={() => setShowNew((v) => !v)}
         autoComplete="new-password"
-        hint="At least 8 characters"
+        hint="At least 12 characters; avoid common words"
       />
       <PasswordField
         id="confirmPassword"

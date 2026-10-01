@@ -7,12 +7,20 @@ const DB_VERSION = 1;
 
 export type OutboxMutation = {
   id: string;
+  /** Rows only replay under the session of the staff member who queued them. */
+  ownerId: string;
   url: string;
   method: string;
   headers: Record<string, string>;
   body: string | null;
   createdAt: number;
 };
+
+let currentOwnerId: string | null = null;
+
+export function setOutboxOwner(userId: string | null) {
+  currentOwnerId = userId;
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -29,11 +37,17 @@ function openDb(): Promise<IDBDatabase> {
 }
 
 export async function enqueueMutation(
-  input: Omit<OutboxMutation, "id" | "createdAt">,
+  input: Omit<OutboxMutation, "id" | "createdAt" | "ownerId">,
 ): Promise<string> {
+  if (!currentOwnerId) throw new Error("No signed-in user to own offline changes");
   const db = await openDb();
   const id = `m_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  const row: OutboxMutation = { ...input, id, createdAt: Date.now() };
+  const row: OutboxMutation = {
+    ...input,
+    id,
+    ownerId: currentOwnerId,
+    createdAt: Date.now(),
+  };
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).put(row);
@@ -53,7 +67,9 @@ export async function listMutations(): Promise<OutboxMutation[]> {
     req.onerror = () => reject(req.error);
   });
   db.close();
-  return rows.sort((a, b) => a.createdAt - b.createdAt);
+  return rows
+    .filter((row) => currentOwnerId !== null && row.ownerId === currentOwnerId)
+    .sort((a, b) => a.createdAt - b.createdAt);
 }
 
 export async function removeMutation(id: string): Promise<void> {

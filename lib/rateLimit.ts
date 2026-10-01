@@ -43,15 +43,41 @@ export function hitRateLimit(key: string, windowMs: number) {
   existing.count += 1;
 }
 
+/** Count every call (not only failures); returns whether this call is over the limit. */
+export function consumeRateLimit(key: string, limit: number, windowMs: number) {
+  const state = isRateLimited(key, limit);
+  if (state.limited) return state;
+  hitRateLimit(key, windowMs);
+  return { limited: false, retryAfterSec: 0 };
+}
+
 export function clearRateLimit(key: string) {
   buckets.delete(key);
 }
 
-export function clientIp(req: Request) {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+/**
+ * Forwarding headers are client-controlled unless a trusted proxy overwrites them.
+ * Vercel sets x-forwarded-for itself; on-prem, opt in with TRUST_PROXY=1 only behind nginx/Caddy.
+ */
+function trustProxyHeaders() {
+  return process.env.VERCEL === "1" || process.env.TRUST_PROXY === "1";
+}
+
+/**
+ * `trusted: false` means every client shares one bucket, so callers should use a
+ * higher shared cap there instead of the per-IP limit (a spoofed header cannot dodge it).
+ */
+export function clientIdentity(req: Request): { ip: string; trusted: boolean } {
+  if (trustProxyHeaders()) {
+    const forwarded = req.headers.get("x-forwarded-for");
+    const first = forwarded?.split(",")[0]?.trim();
+    if (first) return { ip: first, trusted: true };
+    const real = req.headers.get("x-real-ip")?.trim();
+    if (real) return { ip: real, trusted: true };
   }
-  return req.headers.get("x-real-ip")?.trim() || "unknown";
+  return { ip: "shared", trusted: false };
+}
+
+export function clientIp(req: Request) {
+  return clientIdentity(req).ip;
 }

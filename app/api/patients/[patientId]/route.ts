@@ -27,7 +27,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    const parsed: unknown = await req.json();
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    }
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
   const data: {
     fullName?: string;
     patientCode?: string;
@@ -127,7 +136,10 @@ export async function PATCH(
     if (body.age === null || body.age === "") data.age = null;
     else {
       const n = Number(body.age);
-      data.age = Number.isFinite(n) ? n : null;
+      if (!Number.isInteger(n) || n < 0 || n > 150) {
+        return NextResponse.json({ error: "Invalid age" }, { status: 400 });
+      }
+      data.age = n;
     }
   }
   if (body.sex !== undefined) {

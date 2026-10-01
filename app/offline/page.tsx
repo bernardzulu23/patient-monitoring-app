@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 
+// Rendered per request so Next can stamp the CSP nonce on its scripts.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Offline · Patient Monitor",
   robots: { index: false, follow: false },

@@ -1,19 +1,21 @@
 # Local hospital Postgres (rural on-prem). App runs on the host or in the optional `app` service.
+# Set POSTGRES_PASSWORD in a .env file next to this compose file (never commit it).
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:16.10-alpine
     container_name: patient-monitor-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: pm
-      POSTGRES_PASSWORD: pm_local_change_me
+      POSTGRES_USER: ${POSTGRES_USER:-pm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: patient_monitor
+    # Loopback only: the database must never be reachable from the ward Wi-Fi.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pm_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pm -d patient_monitor"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-pm} -d patient_monitor"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -28,9 +30,6 @@ services:
   #   ports:
   #     - "3000:3000"
   #   env_file: .env
-  #   environment:
-  #     DATABASE_URL: postgresql://pm:pm_local_change_me@db:5432/patient_monitor
-  #     DATABASE_URL_UNPOOLED: postgresql://pm:pm_local_change_me@db:5432/patient_monitor
 
 volumes:
   pm_pgdata:

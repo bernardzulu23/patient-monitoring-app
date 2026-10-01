@@ -8,7 +8,9 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "start:lan": "next start -H 0.0.0.0 -p 3000",
+    "start:behind-proxy": "next start -H 127.0.0.1 -p 3000",
     "lint": "eslint",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
@@ -24,7 +26,7 @@
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.3",
     "lucide-react": "^1.24.0",
-    "next": "16.2.10",
+    "next": "^16.3.8",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "serwist": "^9.5.12",
@@ -38,11 +40,16 @@
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "^16.3.8",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "browserslist": "^4.29.3",
+    "baseline-browser-mapping": "^2.11.26",
+    "deepmerge-ts": "^8.0.2"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

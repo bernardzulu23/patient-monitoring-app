@@ -1,25 +1,37 @@
 import { logAction } from "@/lib/audit";
 import {
   hashPassword,
-  MIN_PASSWORD_LENGTH,
-  passwordMeetsPolicy,
+  passwordPolicyError,
   verifyPassword,
 } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
+import { clearRateLimit, hitRateLimit, isRateLimited } from "@/lib/rateLimit";
 import { isAllowedRequestOrigin } from "@/lib/sameOrigin";
-import { createSession, getSession } from "@/lib/session";
+import { createSession, getSessionAllowingPasswordChange } from "@/lib/session";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+
+const CHANGE_WINDOW_MS = 15 * 60 * 1000;
+const MAX_FAILED_CHANGES = 5;
 
 export async function POST(req: Request) {
   if (!isAllowedRequestOrigin(req)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const session = await getSession();
+  const session = await getSessionAllowingPasswordChange();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limitKey = `pwchange:user:${session.userId}`;
+  const limit = isRateLimited(limitKey, MAX_FAILED_CHANGES);
+  if (limit.limited) {
+    return NextResponse.json(
+      { error: "Too many attempts. Try again in a few minutes." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } },
+    );
   }
 
   let body: unknown;
@@ -51,13 +63,16 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!passwordMeetsPolicy(newPassword)) {
-    return NextResponse.json(
-      {
-        error: `New password must be ${MIN_PASSWORD_LENGTH}–72 characters`,
-      },
-      { status: 400 },
-    );
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+  });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const policyError = passwordPolicyError(newPassword, user.email);
+  if (policyError) {
+    return NextResponse.json({ error: policyError }, { status: 400 });
   }
 
   if (currentPassword === newPassword) {
@@ -67,28 +82,24 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-  });
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const valid = await verifyPassword(currentPassword, user.passwordHash);
   if (!valid) {
+    hitRateLimit(limitKey, CHANGE_WINDOW_MS);
     return NextResponse.json(
       { error: "Current password is incorrect" },
       { status: 401 },
     );
   }
+  clearRateLimit(limitKey);
 
   const passwordHash = await hashPassword(newPassword);
-  await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: user.id },
     data: { passwordHash, mustChangePassword: false },
   });
 
-  await createSession(user.id, user.role, user.wardId);
+  // New hash → every other session for this account is invalidated; reissue this one.
+  await createSession(updated);
   await logAction(session.userId, "CHANGED_PASSWORD", "User", user.id);
 
   return NextResponse.json({ success: true });

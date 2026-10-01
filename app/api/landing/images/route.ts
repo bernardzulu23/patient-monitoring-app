@@ -7,6 +7,8 @@ import {
   listLandingImagesMeta,
   MAX_IMAGE_BYTES,
 } from "@/lib/landing";
+import { safeFileName } from "@/lib/csv";
+import { sniffImageType } from "@/lib/imageSniff";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
@@ -64,6 +66,13 @@ export async function POST(req: Request) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
+  const sniffed = sniffImageType(buffer);
+  if (!sniffed || sniffed !== file.type) {
+    return NextResponse.json(
+      { error: "File content is not a valid JPEG, PNG, WebP, or GIF image" },
+      { status: 400 },
+    );
+  }
 
   // Keep a single hero — replace previous hero images
   if (slotRaw === "HERO") {
@@ -73,8 +82,8 @@ export async function POST(req: Request) {
   const image = await prisma.landingImage.create({
     data: {
       slot: slotRaw,
-      fileName: file.name.slice(0, 180) || "upload",
-      mimeType: file.type,
+      fileName: safeFileName(file.name, "upload"),
+      mimeType: sniffed,
       data: buffer,
       uploadedById: session.userId,
     },

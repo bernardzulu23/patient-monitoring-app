@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes, randomInt } from "crypto";
 
 export const BCRYPT_ROUNDS = 12;
-export const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 12;
 /** bcrypt only uses the first 72 bytes */
 export const MAX_PASSWORD_LENGTH = 72;
 
@@ -69,9 +69,66 @@ export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-export function passwordMeetsPolicy(password: string) {
-  return (
-    password.length >= MIN_PASSWORD_LENGTH &&
-    password.length <= MAX_PASSWORD_LENGTH
-  );
+/** Frequently breached passwords and patterns that satisfy length but are trivially guessed. */
+const COMMON_PASSWORDS = new Set([
+  "123456789012",
+  "1234567890123",
+  "12345678901234",
+  "qwertyuiopas",
+  "qwerty123456",
+  "password1234",
+  "password12345",
+  "passwordpassword",
+  "iloveyou1234",
+  "adminadmin123",
+  "administrator",
+  "welcome12345",
+  "letmein12345",
+  "changeme1234",
+  "changeme123!",
+  "hospital1234",
+  "hospital12345",
+  "nurse1234567",
+  "doctor123456",
+  "patient12345",
+  "monitor12345",
+  "zambia123456",
+  "lusaka123456",
+  "abcdefghijkl",
+  "abc123abc123",
+  "111111111111",
+  "000000000000",
+  "aaaaaaaaaaaa",
+]);
+
+/** Returns a human-readable reason the password is rejected, or null if acceptable. */
+export function passwordPolicyError(
+  password: string,
+  email?: string | null,
+): string | null {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
+  }
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return `Password must be at most ${MAX_PASSWORD_LENGTH} characters`;
+  }
+  const lower = password.toLowerCase();
+  if (COMMON_PASSWORDS.has(lower)) {
+    return "This password is too common — choose something less guessable";
+  }
+  if (/^(.)\1+$/.test(password)) {
+    return "Password cannot be a single repeated character";
+  }
+  if (/password|changeme|qwerty/.test(lower)) {
+    return "Password must not contain common words like 'password' or 'changeme'";
+  }
+  const local = email?.split("@")[0]?.toLowerCase();
+  if (local && local.length >= 4 && lower.includes(local)) {
+    return "Password must not contain your email name";
+  }
+  return null;
+}
+
+export function passwordMeetsPolicy(password: string, email?: string | null) {
+  return passwordPolicyError(password, email) === null;
 }

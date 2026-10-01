@@ -1,4 +1,9 @@
-import { getSession, type SessionPayload } from "@/lib/session";
+import {
+  activeSession,
+  getSessionAllowingPasswordChange,
+  type PendingSessionPayload,
+  type SessionPayload,
+} from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
   canAccessWard,
@@ -14,10 +19,21 @@ import {
 import { aggregateScore, type ScoreLevel } from "@/lib/vitalScore";
 import { redirect } from "next/navigation";
 
+export const FORCED_PASSWORD_PATH = "/dashboard/settings?force=1";
+
 export async function requireSession(): Promise<SessionPayload> {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  const pending = await getSessionAllowingPasswordChange();
+  if (!pending) redirect("/login");
+  const session = activeSession(pending);
+  if (!session) redirect(FORCED_PASSWORD_PATH);
   return session;
+}
+
+/** For the dashboard shell and settings page, which must render before a temp password is rotated. */
+export async function requirePendingSession(): Promise<PendingSessionPayload> {
+  const pending = await getSessionAllowingPasswordChange();
+  if (!pending) redirect("/login");
+  return pending;
 }
 
 export function wardsWhereForSession(session: SessionPayload) {

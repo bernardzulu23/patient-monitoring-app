@@ -3,7 +3,7 @@ import { normalizeEmail, verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import {
   clearRateLimit,
-  clientIp,
+  clientIdentity,
   hitRateLimit,
   isRateLimited,
 } from "@/lib/rateLimit";
@@ -16,6 +16,8 @@ export const runtime = "nodejs";
 const INVALID = { error: "Invalid email or password" };
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS_PER_IP = 10;
+/** Used when client IP is unknowable (no trusted proxy): one bucket for all clients. */
+const MAX_ATTEMPTS_SHARED = 50;
 const MAX_ATTEMPTS_PER_EMAIL = 8;
 
 function jsonError(status: number, body: object, retryAfterSec?: number) {
@@ -57,10 +59,13 @@ export async function POST(req: Request) {
       return jsonError(401, INVALID);
     }
 
-    const ip = clientIp(req);
+    const { ip, trusted } = clientIdentity(req);
     const ipKey = `login:ip:${ip}`;
     const emailKey = `login:email:${email}`;
-    const ipLimit = isRateLimited(ipKey, MAX_ATTEMPTS_PER_IP);
+    const ipLimit = isRateLimited(
+      ipKey,
+      trusted ? MAX_ATTEMPTS_PER_IP : MAX_ATTEMPTS_SHARED,
+    );
     const emailLimit = isRateLimited(emailKey, MAX_ATTEMPTS_PER_EMAIL);
 
     if (ipLimit.limited || emailLimit.limited) {
@@ -98,7 +103,7 @@ export async function POST(req: Request) {
       });
     }
 
-    await createSession(user.id, user.role, user.wardId);
+    await createSession(user);
     try {
       await logAction(user.id, "LOGGED_IN", "User", user.id);
     } catch (auditError) {

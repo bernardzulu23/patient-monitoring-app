@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { signOutAndClear } from "@/lib/offline-session";
 
 export function LogoutButton() {
   const router = useRouter();
@@ -9,10 +10,11 @@ export function LogoutButton() {
 
   async function logout() {
     setLoading(true);
-    await fetch("/api/logout", {
-      method: "POST",
-      credentials: "same-origin",
-    });
+    try {
+      await signOutAndClear();
+    } catch {
+      // offline: caches are still cleared; server session expires on its own
+    }
     router.push("/login");
     router.refresh();
   }

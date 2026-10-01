@@ -1,19 +1,14 @@
 import { ChangePasswordForm } from "@/components/change-password-form";
-import { requireSession } from "@/lib/data";
-import { prisma } from "@/lib/prisma";
+import { requirePendingSession } from "@/lib/data";
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ force?: string }>;
 }) {
-  const session = await requireSession();
+  const session = await requirePendingSession();
   const { force } = await searchParams;
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { mustChangePassword: true },
-  });
-  const forced = Boolean(user?.mustChangePassword) || force === "1";
+  const forced = session.mustChangePassword || force === "1";
 
   return (
     <div className="animate-rise space-y-6">
