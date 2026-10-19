@@ -123,6 +123,26 @@ model User {
   alertAcks          Alert[]    @relation("AlertAcks")
   admittingFor       Patient[]  @relation("AdmittingDoctor")
   assignedNurseFor   Patient[]  @relation("AssignedNurse")
+  passkeys           Passkey[]
+}
+
+/** WebAuthn / passkey public credentials. Private key never leaves the staff device. */
+model Passkey {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** Base64URL credential ID from the authenticator. */
+  credentialId String   @unique
+  publicKey    Bytes
+  counter      Int      @default(0)
+  /** JSON array of AuthenticatorTransport strings, e.g. ["internal","hybrid"]. */
+  transports   String?
+  deviceType   String   @default("singleDevice") // singleDevice | multiDevice
+  backedUp     Boolean  @default(false)
+  name         String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
 }
 
 // Next steps (out of scope for this project): field-level encryption of AuditLog

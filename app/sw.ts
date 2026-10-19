@@ -43,6 +43,7 @@ const serwist = new Serwist({
         url.pathname.startsWith("/api/") &&
         !url.pathname.startsWith("/api/login") &&
         !url.pathname.startsWith("/api/logout") &&
+        !url.pathname.startsWith("/api/passkeys") &&
         !url.pathname.startsWith("/api/readings") &&
         !url.pathname.startsWith("/api/ingest"),
       handler: new NetworkFirst({

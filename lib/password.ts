@@ -69,23 +69,33 @@ export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-/** Frequently breached passwords and patterns that satisfy length but are trivially guessed. */
+/**
+ * Known weak / demo passwords — including short historical seed values that
+ * predate MIN_PASSWORD_LENGTH (e.g. changeme123). Used for policy checks and
+ * to force a password change when someone still signs in with them.
+ */
 const COMMON_PASSWORDS = new Set([
+  "changeme123",
+  "changeme1234",
+  "changeme123!",
+  "changeme12345",
+  "password",
+  "password1",
+  "password12",
+  "password123",
+  "password1234",
+  "password12345",
+  "passwordpassword",
   "123456789012",
   "1234567890123",
   "12345678901234",
   "qwertyuiopas",
   "qwerty123456",
-  "password1234",
-  "password12345",
-  "passwordpassword",
   "iloveyou1234",
   "adminadmin123",
   "administrator",
   "welcome12345",
   "letmein12345",
-  "changeme1234",
-  "changeme123!",
   "hospital1234",
   "hospital12345",
   "nurse1234567",
@@ -99,7 +109,20 @@ const COMMON_PASSWORDS = new Set([
   "111111111111",
   "000000000000",
   "aaaaaaaaaaaa",
+  "admin",
+  "admin123",
+  "admin1234",
+  "admin12345",
+  "admin123456",
 ]);
+
+/** True if this password must never be accepted as a durable credential. */
+export function isInsecureKnownPassword(password: string) {
+  const lower = password.toLowerCase();
+  if (COMMON_PASSWORDS.has(lower)) return true;
+  if (/password|changeme|qwerty/.test(lower)) return true;
+  return passwordPolicyError(password) !== null;
+}
 
 /** Returns a human-readable reason the password is rejected, or null if acceptable. */
 export function passwordPolicyError(

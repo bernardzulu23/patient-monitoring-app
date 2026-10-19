@@ -1,5 +1,9 @@
 import { logAction } from "@/lib/audit";
-import { normalizeEmail, verifyPassword } from "@/lib/password";
+import {
+  isInsecureKnownPassword,
+  normalizeEmail,
+  verifyPassword,
+} from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import {
   clearRateLimit,
@@ -103,6 +107,22 @@ export async function POST(req: Request) {
       });
     }
 
+    // Production / any deploy: never leave an active session on a known-weak
+    // password — force the password-change gate before PHI APIs unlock.
+    let mustChangePassword = user.mustChangePassword;
+    if (isInsecureKnownPassword(password) && !mustChangePassword) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { mustChangePassword: true },
+      });
+      mustChangePassword = true;
+      try {
+        await logAction(user.id, "PASSWORD_CHANGE_REQUIRED", "User", user.id);
+      } catch (auditError) {
+        console.error("[api/login] audit insecure password", auditError);
+      }
+    }
+
     await createSession(user);
     try {
       await logAction(user.id, "LOGGED_IN", "User", user.id);
@@ -114,7 +134,7 @@ export async function POST(req: Request) {
       {
         success: true,
         role: user.role,
-        mustChangePassword: user.mustChangePassword,
+        mustChangePassword,
       },
       { headers: { "Cache-Control": "no-store" } },
     );

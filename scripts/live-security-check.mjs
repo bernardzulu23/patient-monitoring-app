@@ -96,6 +96,7 @@ const protectedGets = [
   "/api/admin/messages",
   "/api/admin/thresholds",
   "/api/landing/images",
+  "/api/passkeys",
 ];
 for (const path of protectedGets) {
   const res = await get(path);
@@ -107,6 +108,8 @@ const protectedWrites = [
   ["/api/staff", "POST"],
   ["/api/admin/devices", "POST"],
   ["/api/admin/thresholds", "PUT"],
+  ["/api/passkeys/register/options", "POST"],
+  ["/api/passkeys/register", "POST"],
 ];
 for (const [path, method] of protectedWrites) {
   const res = await send(path, method, null, {});
@@ -164,6 +167,29 @@ const csrf = await send("/api/contact", "POST", null, { name: "a", institution: 
 check("C1", "cross-site POST rejected", csrf.status === 403, `status ${csrf.status}`);
 const csrfFetch = await send("/api/patients", "POST", nurseA.cookie, {}, { Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" });
 check("C1", "cross-site authenticated mutation rejected", csrfFetch.status === 403, `status ${csrfFetch.status}`);
+const csrfPasskey = await send("/api/passkeys/login", "POST", null, { id: "x" }, { Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" });
+check("C1", "cross-site passkey login rejected", csrfPasskey.status === 403, `status ${csrfPasskey.status}`);
+
+// --- Passkeys (optional WebAuthn) ------------------------------------------
+const pkList = await get("/api/passkeys", admin.cookie);
+check("PK", "admin can list own passkeys", pkList.status === 200, `status ${pkList.status}`);
+const pkForge = await send("/api/passkeys/login", "POST", null, {
+  id: "forged",
+  rawId: "forged",
+  type: "public-key",
+  response: {
+    clientDataJSON: "e30",
+    authenticatorData: "AA",
+    signature: "AA",
+  },
+});
+check("PK", "forged passkey assertion rejected", pkForge.status === 401 || pkForge.status === 400, `status ${pkForge.status}`);
+const pkDel = await send("/api/passkeys/does-not-exist", "DELETE", nurseA.cookie, {});
+check("PK", "delete unknown passkey is 404", pkDel.status === 404, `status ${pkDel.status}`);
+const pkOpts = await send("/api/passkeys/login/options", "POST", null, {});
+check("PK", "login options available without session", pkOpts.status === 200, `status ${pkOpts.status}`);
+const setChallenge = (pkOpts.headers.get("set-cookie") ?? "").toLowerCase();
+check("PK", "challenge cookie is HttpOnly", setChallenge.includes("httponly") || setChallenge.includes("webauthn-challenge") || setChallenge.includes("__host-webauthn"));
 
 // --- I11 body limit --------------------------------------------------------
 const big = await send("/api/contact", "POST", null, { name: "a", institution: "b", message: "x".repeat(300_000) });

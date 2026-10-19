@@ -1,17 +1,54 @@
 import type { Metadata, Viewport } from "next";
-import { Newsreader, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
+const jakarta = localFont({
+  src: [
+    {
+      path: "./fonts/plus-jakarta-sans-latin-400.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/plus-jakarta-sans-latin-500.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "./fonts/plus-jakarta-sans-latin-600.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "./fonts/plus-jakarta-sans-latin-700.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-jakarta",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
-const newsreader = Newsreader({
+const newsreader = localFont({
+  src: [
+    {
+      path: "./fonts/newsreader-latin-400.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/newsreader-latin-600.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "./fonts/newsreader-latin-700.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-newsreader",
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {

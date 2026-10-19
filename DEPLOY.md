@@ -46,6 +46,21 @@ Staff open `https://<hospital-pc-ip>` on the ward Wi‑Fi. Do not use `npm run s
 
 Allow only TCP 80/443 inbound on the hospital PC firewall; keep 3000 and 5432 closed to the LAN.
 
+### 3c. Optional passkeys (WebAuthn)
+
+Staff can register a passkey under **Settings** after changing their temporary password, then use **Sign in with passkey** on the login page. Password remains the fallback.
+
+Browsers require HTTPS (or `localhost`). Passkeys are bound to a hostname:
+
+```bash
+# Prefer a stable LAN name, not a raw IP — passkeys for 192.168.1.20
+# will not work if staff later open https://pm.hospital.lan
+PASSKEY_RP_ID=pm.hospital.lan
+PASSKEY_ORIGIN=https://pm.hospital.lan
+```
+
+Use the same hostname in `SITE_ADDRESS` for Caddy. Cloud demos set these to the Vercel domain. Passkeys registered on Vercel are separate from on-prem passkeys.
+
 Demo logins — the seed prints a random one-time password (or uses `SEED_PASSWORD`); every account must change it at first sign-in. The seed refuses to run when `NODE_ENV=production`.
 
 - `admin@hospital.test`
@@ -80,3 +95,4 @@ Keep Neon pooled/unpooled URLs in `.env` / Vercel env. Deploy as usual. Cloud is
 - HTTPS vitals: `POST /api/readings` with device `x-api-key`
 - SMS vitals: modem → gateway → `POST /api/ingest/sms`
 - Nurses admit patients for their ward; doctors are read-only for patient CRUD
+- Optional passkeys: public key in DB (`Passkey` table); private key stays on the staff device; successful assertion creates the same session cookie as password login

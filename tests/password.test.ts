@@ -5,6 +5,7 @@ import {
   BCRYPT_ROUNDS,
   generateStrongPassword,
   hashPassword,
+  isInsecureKnownPassword,
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
   passwordPolicyError,
@@ -39,13 +40,20 @@ describe("A2 password policy", () => {
     for (const pw of [
       "password1234",
       "changeme1234",
+      "changeme123",
       "hospital1234",
       "aaaaaaaaaaaaaaa",
       "MyPassword2026!",
       "qwerty-long-enough",
     ]) {
       assert.ok(passwordPolicyError(pw), `expected rejection for ${pw}`);
+      assert.ok(isInsecureKnownPassword(pw), `expected insecure flag for ${pw}`);
     }
+  });
+
+  it("flags historical short demo password as insecure", () => {
+    assert.equal(isInsecureKnownPassword("changeme123"), true);
+    assert.equal(isInsecureKnownPassword("Tall-Giraffe-Walks-42"), false);
   });
 
   it("rejects passwords containing the email name", () => {

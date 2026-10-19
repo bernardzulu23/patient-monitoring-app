@@ -1,8 +1,22 @@
 "use client";
 
-import { Eye, EyeOff } from "lucide-react";
+import { startAuthentication } from "@simplewebauthn/browser";
+import { Eye, EyeOff, KeyRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+function navigateAfterLogin(
+  router: ReturnType<typeof useRouter>,
+  data: { mustChangePassword?: boolean; role?: string },
+) {
+  if (data.mustChangePassword) {
+    router.push("/dashboard/settings?force=1");
+  } else {
+    const dest = data.role === "nurse" ? "/dashboard/beds" : "/dashboard";
+    router.push(dest);
+  }
+  router.refresh();
+}
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -10,6 +24,7 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -27,17 +42,7 @@ export function LoginForm() {
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        const mustChange = Boolean(
-          (data as { mustChangePassword?: boolean }).mustChangePassword,
-        );
-        if (mustChange) {
-          router.push("/dashboard/settings?force=1");
-        } else {
-          const role = (data as { role?: string }).role;
-          const dest = role === "nurse" ? "/dashboard/beds" : "/dashboard";
-          router.push(dest);
-        }
-        router.refresh();
+        navigateAfterLogin(router, data as { mustChangePassword?: boolean; role?: string });
       } else {
         const data = await res.json().catch(() => ({}));
         const message = (data as { error?: string }).error;
@@ -58,6 +63,63 @@ export function LoginForm() {
     }
   }
 
+  async function handlePasskeySignIn() {
+    setError("");
+    if (typeof window === "undefined" || !window.PublicKeyCredential) {
+      setError("This browser does not support passkeys. Use email and password.");
+      return;
+    }
+    setPasskeyLoading(true);
+    try {
+      const optRes = await fetch("/api/passkeys/login/options", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim() || undefined,
+        }),
+      });
+      const optData = await optRes.json().catch(() => ({}));
+      if (!optRes.ok) {
+        setError(
+          (optData as { error?: string }).error ||
+            "Could not start passkey sign-in",
+        );
+        return;
+      }
+
+      const assertion = await startAuthentication({ optionsJSON: optData });
+      const loginRes = await fetch("/api/passkeys/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(assertion),
+      });
+      const loginData = await loginRes.json().catch(() => ({}));
+      if (!loginRes.ok) {
+        setError(
+          (loginData as { error?: string }).error ||
+            "Passkey sign-in failed",
+        );
+        return;
+      }
+      navigateAfterLogin(
+        router,
+        loginData as { mustChangePassword?: boolean; role?: string },
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error && err.name === "NotAllowedError"
+          ? "Passkey sign-in was cancelled"
+          : "Passkey sign-in failed on this device";
+      setError(message);
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }
+
+  const busy = loading || passkeyLoading;
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -74,7 +136,7 @@ export function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          autoComplete="username"
+          autoComplete="username webauthn"
           inputMode="email"
           maxLength={254}
           className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
@@ -119,11 +181,29 @@ export function LoginForm() {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={busy}
         className="w-full rounded-lg bg-brand-deep py-2.5 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60"
       >
         {loading ? "Signing in…" : "Sign in"}
       </button>
+
+      <div className="flex items-center gap-3 text-xs text-ink-muted">
+        <div className="h-px flex-1 bg-line" />
+        or
+        <div className="h-px flex-1 bg-line" />
+      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void handlePasskeySignIn()}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-white py-2.5 text-sm font-semibold text-ink transition hover:bg-bg disabled:opacity-60"
+      >
+        <KeyRound size={18} />
+        {passkeyLoading ? "Waiting for passkey…" : "Sign in with passkey"}
+      </button>
+      <p className="text-center text-xs text-ink-muted">
+        Email optional if this device already saved a passkey for this site.
+      </p>
 
       <ForgotPasswordHint />
     </form>

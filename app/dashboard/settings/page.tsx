@@ -1,4 +1,5 @@
 import { ChangePasswordForm } from "@/components/change-password-form";
+import { PasskeyManager } from "@/components/passkey-manager";
 import { requirePendingSession } from "@/lib/data";
 
 export default async function SettingsPage({
@@ -19,7 +20,7 @@ export default async function SettingsPage({
         <p className="mt-1 text-sm text-ink-muted">
           {forced
             ? "Your account was issued a temporary password. Choose a new password to continue using the dashboard."
-            : "Change the password you use to sign in. After an admin gives you a temporary password, update it here."}
+            : "Change the password you use to sign in, or add an optional passkey for faster unlock on this device."}
         </p>
       </div>
       {forced && (
@@ -28,6 +29,7 @@ export default async function SettingsPage({
         </div>
       )}
       <ChangePasswordForm />
+      <PasskeyManager disabled={session.mustChangePassword} />
     </div>
   );
 }
